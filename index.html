@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mati Kalter — Option 1: Gallery + Filter</title>
+<title>Mati Kalter</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --left-w: 240px;
+    --left-w: 340px;
     --border: #e0e0e0;
     --text: #111;
     --text-muted: #888;
@@ -21,11 +21,12 @@
   html, body { font-family: var(--font); background: var(--bg); color: var(--text); }
   .site { min-height: 100vh; }
 
+  /* LEFT PANEL */
   .left {
     position: fixed; top: 0; left: 0;
     width: var(--left-w); height: 100vh;
     border-right: 1px solid var(--border);
-    padding: 32px 24px;
+    padding: 32px 28px;
     display: flex; flex-direction: column;
     background: var(--bg);
     overflow-y: auto; overflow-x: hidden;
@@ -46,14 +47,16 @@
   .tag { font-size: 11px; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; transition: all 0.15s; background: transparent; user-select: none; }
   .tag:hover { border-color: #999; color: var(--text); }
   .tag.active { background: var(--text); color: #fff; border-color: var(--text); }
+  .lp-proj-title { font-size: 20px; font-weight: 500; line-height: 1.2; margin-bottom: 4px; }
+  .lp-proj-year { font-size: 12px; color: var(--text-faint); margin-bottom: 16px; }
+  .lp-proj-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 16px; }
+  .lp-proj-tag { font-size: 11px; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border); color: var(--text-muted); }
+  .lp-proj-desc { font-size: 12px; color: var(--text-muted); line-height: 1.7; }
 
+  /* RIGHT PANEL */
   .right { margin-left: var(--left-w); min-height: 100vh; }
-
-  .hero-reel { height: 56vh; min-height: 320px; max-height: 520px; background: var(--bg-tertiary); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; overflow: hidden; }
-  .play-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; margin-bottom: 4px; }
-  .play-tri { width: 0; height: 0; border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 11px solid var(--text-faint); margin-left: 3px; }
-  .reel-label { font-size: 11px; color: var(--text-faint); letter-spacing: 0.1em; text-transform: uppercase; }
-
+  .hero-reel { height: 56vh; min-height: 320px; max-height: 520px; background: var(--bg-tertiary); border-bottom: 1px solid var(--border); overflow: hidden; position: relative; }
+  .hero-reel iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
   .grid-area { padding: 24px; }
   .grid-count { font-size: 11px; color: var(--text-faint); margin-bottom: 18px; }
   .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
@@ -65,18 +68,17 @@
   .proj-info { padding: 10px 12px 12px; }
   .proj-title { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
   .proj-tags-text { font-size: 11px; color: var(--text-faint); }
-
   .proj-page { display: none; }
   .proj-page.visible { display: block; }
   .back-link { font-size: 11px; color: var(--text-faint); cursor: pointer; padding: 20px 24px 0; display: inline-flex; align-items: center; gap: 5px; transition: color 0.15s; }
   .back-link:hover { color: var(--text); }
   .proj-content { padding: 16px 24px 48px; }
-  .proj-hero { width: 100%; aspect-ratio: 16/8; background: var(--bg-tertiary); border-radius: var(--radius); overflow: hidden; margin-bottom: 16px; display: flex; align-items: center; justify-content: center; }
-  .proj-hero img, .proj-hero video { width: 100%; height: 100%; object-fit: cover; }
+  .proj-hero { width: 100%; aspect-ratio: 16/8; background: var(--bg-tertiary); border-radius: var(--radius); overflow: hidden; margin-bottom: 16px; display: flex; align-items: center; justify-content: center; position: relative; }
+  .proj-hero img { width: 100%; height: 100%; object-fit: cover; }
+  .proj-hero iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
   .proj-media-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
   .proj-media-item { aspect-ratio: 16/10; background: var(--bg-secondary); border-radius: var(--radius); overflow: hidden; }
   .proj-media-item img { width: 100%; height: 100%; object-fit: cover; }
-
   .about-view { display: none; padding: 40px 48px; max-width: 640px; }
   .about-view.visible { display: block; }
   .about-bio { font-size: 15px; color: var(--text-muted); line-height: 1.8; margin-bottom: 32px; }
@@ -84,12 +86,6 @@
   .about-section-title { font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; }
   .about-item { font-size: 13px; color: var(--text-muted); padding: 7px 0; border-top: 1px solid var(--border); line-height: 1.5; }
   .about-item span { color: var(--text-faint); }
-
-  .lp-proj-title { font-size: 20px; font-weight: 500; line-height: 1.2; margin-bottom: 4px; }
-  .lp-proj-year { font-size: 12px; color: var(--text-faint); margin-bottom: 16px; }
-  .lp-proj-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 16px; }
-  .lp-proj-tag { font-size: 11px; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border); color: var(--text-muted); }
-  .lp-proj-desc { font-size: 12px; color: var(--text-muted); line-height: 1.7; }
 </style>
 </head>
 <body>
@@ -106,7 +102,7 @@
         <a href="https://linkedin.com/in/YOUR_HANDLE" target="_blank" class="social-icon" title="LinkedIn">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><line x1="8" y1="11" x2="8" y2="16"/><line x1="8" y1="8" x2="8" y2="8.5" stroke-width="2"/><path d="M12 11v5M12 11a3 3 0 0 1 6 0v5"/></svg>
         </a>
-        <a href="/cdn-cgi/l/email-protection#83daccd6d1c3c6cec2cacfadc0ccce" class="social-icon" title="Email">
+        <a href="mailto:YOUR@EMAIL.COM" class="social-icon" title="Email">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>
         </a>
         <span class="about-link" onclick="window.openAbout()">
@@ -132,47 +128,57 @@
 
     <div id="home-view">
       <div class="hero-reel">
-        <iframe src="https://player.vimeo.com/video/1136277012?autoplay=1&muted=1&loop=1&background=1" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen style="width:100%;height:100%;border:0;"></iframe>
+        <iframe src="https://player.vimeo.com/video/1136277012?autoplay=1&muted=1&loop=1&background=1" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
       </div>
       <div class="grid-area">
         <div class="grid-count" id="grid-count">9 projects</div>
         <div class="project-grid" id="project-grid">
+
           <div class="proj-card" data-tags="games 3d art-direction" onclick="window.openProject('bloom')">
             <div class="proj-thumb"><img src="assets/bloom/SuperFlowerLotusGrowCinematic.gif" alt="Bloom"></div>
-            <div class="proj-info"><div class="proj-title">Bloom</div><div class="proj-tags-text">Games · 3D · Art direction</div></div>
+            <div class="proj-info"><div class="proj-title">Bloom</div><div class="proj-tags-text">Games &middot; 3D &middot; Art direction</div></div>
           </div>
+
           <div class="proj-card" data-tags="games 3d art-direction" onclick="window.openProject('consumania')">
             <div class="proj-thumb"></div>
-            <div class="proj-info"><div class="proj-title">Consumania</div><div class="proj-tags-text">Games · 3D · Art direction</div></div>
+            <div class="proj-info"><div class="proj-title">Consumania</div><div class="proj-tags-text">Games &middot; 3D &middot; Art direction</div></div>
           </div>
+
           <div class="proj-card" data-tags="games 2d art-direction" onclick="window.openProject('matilena')">
             <div class="proj-thumb"></div>
-            <div class="proj-info"><div class="proj-title">Matilena</div><div class="proj-tags-text">Games · 2D · Art direction</div></div>
+            <div class="proj-info"><div class="proj-title">Matilena</div><div class="proj-tags-text">Games &middot; 2D &middot; Art direction</div></div>
           </div>
+
           <div class="proj-card" data-tags="games 3d" onclick="window.openProject('lastquestion')">
             <div class="proj-thumb"></div>
-            <div class="proj-info"><div class="proj-title">The Last Question</div><div class="proj-tags-text">Games · 3D</div></div>
+            <div class="proj-info"><div class="proj-title">The Last Question</div><div class="proj-tags-text">Games &middot; 3D</div></div>
           </div>
+
           <div class="proj-card" data-tags="games 2d" onclick="window.openProject('noodle')">
             <div class="proj-thumb"></div>
-            <div class="proj-info"><div class="proj-title">Noodle Tryst</div><div class="proj-tags-text">Games · 2D</div></div>
+            <div class="proj-info"><div class="proj-title">Noodle Tryst</div><div class="proj-tags-text">Games &middot; 2D</div></div>
           </div>
+
           <div class="proj-card" data-tags="motion animation 2d" onclick="window.openProject('beingtrial')">
             <div class="proj-thumb"></div>
-            <div class="proj-info"><div class="proj-title">Being Trial &amp; Error</div><div class="proj-tags-text">Motion · 2D · Animation</div></div>
+            <div class="proj-info"><div class="proj-title">Being Trial &amp; Error</div><div class="proj-tags-text">Motion &middot; 2D &middot; Animation</div></div>
           </div>
+
           <div class="proj-card" data-tags="motion animation 3d" onclick="window.openProject('comboticsanim')">
             <div class="proj-thumb"></div>
-            <div class="proj-info"><div class="proj-title">ComboTics</div><div class="proj-tags-text">Motion · 3D · Animation</div></div>
+            <div class="proj-info"><div class="proj-title">ComboTics</div><div class="proj-tags-text">Motion &middot; 3D &middot; Animation</div></div>
           </div>
+
           <div class="proj-card" data-tags="personal illustration 2d" onclick="window.openProject('illustration')">
             <div class="proj-thumb"></div>
-            <div class="proj-info"><div class="proj-title">Illustration</div><div class="proj-tags-text">Personal · 2D · Illustration</div></div>
+            <div class="proj-info"><div class="proj-title">Illustration</div><div class="proj-tags-text">Personal &middot; 2D &middot; Illustration</div></div>
           </div>
+
           <div class="proj-card" data-tags="games 2d" onclick="window.openProject('comboticsui')">
             <div class="proj-thumb"></div>
-            <div class="proj-info"><div class="proj-title">ComboTics UI</div><div class="proj-tags-text">Games · 2D · Visual design</div></div>
+            <div class="proj-info"><div class="proj-title">ComboTics UI</div><div class="proj-tags-text">Games &middot; 2D &middot; Visual design</div></div>
           </div>
+
         </div>
       </div>
     </div>
@@ -208,44 +214,103 @@
   </div>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
-  /* ── Project data ── */
-  const projects = {
-    bloom:        { title:'Bloom',               year:'2024',    tags:['Art Direction','3D Art','Games'],          desc:'Art directed a 14-person DADIU team — establishing the full visual language, characters, flora, and shader-driven environments — for a puzzle game about growth and sound.', video:'https://www.youtube.com/embed/LUhEjle3jiI?autoplay=1&mute=1&loop=1&playlist=LUhEjle3jiI&rel=0&controls=1', images:[] },
-    consumania:   { title:'Consumania',           year:'2024',    tags:['Art Direction','3D Art','Games'],          desc:'Solo art director and 3D artist on a satirical open-world game about consumer culture. Shaped the entire visual world from concept to in-engine assets.', images:[] },
-    matilena:     { title:'Matilena',             year:'2023',    tags:['Art Direction','2D Art','Games'],          desc:'', images:[] },
-    lastquestion: { title:'The Last Question',    year:'2023',    tags:['3D Art','Games'],                         desc:'', images:[] },
-    noodle:       { title:'Noodle Tryst',         year:'2022',    tags:['2D Art','Games'],                         desc:'', images:[] },
-    beingtrial:   { title:'Being Trial & Error',  year:'2022',    tags:['Animation','2D','Motion'],                desc:'', images:[] },
-    comboticsanim:{ title:'ComboTics',            year:'2021',    tags:['Animation','3D','Motion'],                desc:'', images:[] },
-    illustration: { title:'Illustration',         year:'Ongoing', tags:['Illustration','2D','Personal'],           desc:'A collection of 2D illustrations spanning posters, characters, and personal work.', images:[] },
-    comboticsui:  { title:'ComboTics UI',         year:'2021',    tags:['Visual Design','Games'],                  desc:'', images:[] }
+<script>
+  var projects = {
+    bloom: {
+      title: 'Bloom',
+      year: '2024',
+      tags: ['Art Direction', '3D Art', 'Games'],
+      desc: 'Art directed a 14-person DADIU team — establishing the full visual language, characters, flora, and shader-driven environments — for a puzzle game about growth and sound.',
+      video: 'https://www.youtube.com/embed/LUhEjle3jiI?autoplay=1&mute=1&loop=1&playlist=LUhEjle3jiI&rel=0&controls=1',
+      images: []
+    },
+    consumania: {
+      title: 'Consumania',
+      year: '2024',
+      tags: ['Art Direction', '3D Art', 'Games'],
+      desc: 'Solo art director and 3D artist on a satirical open-world game about consumer culture. Shaped the entire visual world from concept to in-engine assets.',
+      images: []
+    },
+    matilena: {
+      title: 'Matilena',
+      year: '2023',
+      tags: ['Art Direction', '2D Art', 'Games'],
+      desc: '',
+      images: []
+    },
+    lastquestion: {
+      title: 'The Last Question',
+      year: '2023',
+      tags: ['3D Art', 'Games'],
+      desc: '',
+      images: []
+    },
+    noodle: {
+      title: 'Noodle Tryst',
+      year: '2022',
+      tags: ['2D Art', 'Games'],
+      desc: '',
+      images: []
+    },
+    beingtrial: {
+      title: 'Being Trial & Error',
+      year: '2022',
+      tags: ['Animation', '2D', 'Motion'],
+      desc: '',
+      images: []
+    },
+    comboticsanim: {
+      title: 'ComboTics',
+      year: '2021',
+      tags: ['Animation', '3D', 'Motion'],
+      desc: '',
+      images: []
+    },
+    illustration: {
+      title: 'Illustration',
+      year: 'Ongoing',
+      tags: ['Illustration', '2D', 'Personal'],
+      desc: 'A collection of 2D illustrations spanning posters, characters, and personal work.',
+      images: []
+    },
+    comboticsui: {
+      title: 'ComboTics UI',
+      year: '2021',
+      tags: ['Visual Design', 'Games'],
+      desc: '',
+      images: []
+    }
   };
 
-  let activeFilter = 'all';
+  var activeFilter = 'all';
 
-  /* ── Helpers ── */
-  const svgIG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>`;
-  const svgLI = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><line x1="8" y1="11" x2="8" y2="16"/><line x1="8" y1="8" x2="8" y2="8.5" stroke-width="2"/><path d="M12 11v5M12 11a3 3 0 0 1 6 0v5"/></svg>`;
-  const svgEM = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>`;
+  var svgIG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>';
+  var svgLI = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><line x1="8" y1="11" x2="8" y2="16"/><line x1="8" y1="8" x2="8" y2="8.5" stroke-width="2"/><path d="M12 11v5M12 11a3 3 0 0 1 6 0v5"/></svg>';
+  var svgEM = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>';
 
-  function socialHTML(aboutOnclick, aboutLabel) {
-    return `
-      <div class="identity">
-        <div class="bio">Visual designer working in games — art direction, 3D/2D art &amp; animation.</div>
-        <div class="social-row">
-          <a href="https://instagram.com/YOUR_HANDLE" target="_blank" class="social-icon">${svgIG}</a>
-          <a href="https://linkedin.com/in/YOUR_HANDLE" target="_blank" class="social-icon">${svgLI}</a>
-          <a href="mailto:YOUR@EMAIL.COM" class="social-icon">${svgEM}</a>
-          <span class="about-link" onclick="${aboutOnclick}">${aboutLabel}</span>
-        </div>
-      </div>`;
+  function socialRowHTML(aboutOnclick, aboutLabel) {
+    return '<div class="identity">'
+      + '<div class="bio">Visual designer working in games \u2014 art direction, 3D/2D art &amp; animation.</div>'
+      + '<div class="social-row">'
+      + '<a href="https://instagram.com/YOUR_HANDLE" target="_blank" class="social-icon">' + svgIG + '</a>'
+      + '<a href="https://linkedin.com/in/YOUR_HANDLE" target="_blank" class="social-icon">' + svgLI + '</a>'
+      + '<a href="mailto:YOUR@EMAIL.COM" class="social-icon">' + svgEM + '</a>'
+      + '<span class="about-link" onclick="' + aboutOnclick + '">' + aboutLabel + '</span>'
+      + '</div></div>';
+  }
+
+  function filterLabels() {
+    var filters = ['all','games','motion','personal','3d','2d','art-direction','animation','illustration'];
+    return filters.map(function(f) {
+      var label = f === 'art-direction' ? 'Art direction' : f.charAt(0).toUpperCase() + f.slice(1);
+      return '<span class="tag' + (activeFilter === f ? ' active' : '') + '" data-filter="' + f + '">' + label + '</span>';
+    }).join('');
   }
 
   function bindTags() {
-    document.querySelectorAll('.tag').forEach(tag => {
-      tag.addEventListener('click', () => {
-        document.querySelectorAll('.tag').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tag').forEach(function(tag) {
+      tag.addEventListener('click', function() {
+        document.querySelectorAll('.tag').forEach(function(t) { t.classList.remove('active'); });
         tag.classList.add('active');
         activeFilter = tag.dataset.filter;
         filterGrid();
@@ -254,74 +319,83 @@
   }
 
   function filterGrid() {
-    let visible = 0;
-    document.querySelectorAll('.proj-card').forEach(card => {
-      const show = activeFilter === 'all' || (card.dataset.tags || '').split(' ').includes(activeFilter);
+    var visible = 0;
+    document.querySelectorAll('.proj-card').forEach(function(card) {
+      var show = activeFilter === 'all' || (card.dataset.tags || '').split(' ').indexOf(activeFilter) !== -1;
       card.classList.toggle('hidden', !show);
       if (show) visible++;
     });
-    const c = document.getElementById('grid-count');
+    var c = document.getElementById('grid-count');
     if (c) c.textContent = visible + ' project' + (visible !== 1 ? 's' : '');
   }
 
   function setView(id) {
-    ['home-view','project-view','about-view'].forEach(v => {
-      const el = document.getElementById(v);
+    ['home-view', 'project-view', 'about-view'].forEach(function(v) {
+      var el = document.getElementById(v);
       if (el) { el.style.display = 'none'; el.classList.remove('visible'); }
     });
-    const t = document.getElementById(id);
-    if (t) { t.style.display = 'block'; t.classList.add('visible'); }
+    var target = document.getElementById(id);
+    if (target) { target.style.display = 'block'; target.classList.add('visible'); }
     window.scrollTo(0, 0);
   }
 
   function setLeftDefault() {
-    const filters = ['all','games','motion','personal','3d','2d','art-direction','animation','illustration'];
-    document.getElementById('left-panel').innerHTML = `
-      <div class="logo-zone" onclick="window.goHome()">Mati Kalter</div>
-      ${socialHTML("window.openAbout()", `<span style="font-size:15px;font-weight:300;line-height:1">+</span>&nbsp;About`)}
-      <div class="filter-label">Filter</div>
-      <div class="tags" id="tag-list">
-        ${filters.map(f => `<span class="tag${activeFilter===f?' active':''}" data-filter="${f}">${f==='art-direction'?'Art direction':f.charAt(0).toUpperCase()+f.slice(1)}</span>`).join('')}
-      </div>`;
+    document.getElementById('left-panel').innerHTML =
+      '<div class="logo-zone" onclick="window.goHome()">Mati Kalter</div>'
+      + socialRowHTML('window.openAbout()', '<span style="font-size:15px;font-weight:300;line-height:1">+</span>&nbsp;About')
+      + '<div class="filter-label">Filter</div>'
+      + '<div class="tags" id="tag-list">' + filterLabels() + '</div>';
     bindTags();
     filterGrid();
   }
 
-  /* ── Public functions — exposed to window for onclick handlers ── */
   window.goHome = function() {
     setLeftDefault();
     setView('home-view');
   };
 
   window.openAbout = function() {
-    document.getElementById('left-panel').innerHTML = `
-      <div class="logo-zone" onclick="window.goHome()">Mati Kalter</div>
-      ${socialHTML("window.goHome()", `<span style="font-size:14px;font-weight:300;line-height:1">&#215;</span>&nbsp;Close`)}`;
+    document.getElementById('left-panel').innerHTML =
+      '<div class="logo-zone" onclick="window.goHome()">Mati Kalter</div>'
+      + socialRowHTML('window.goHome()', '<span style="font-size:14px;font-weight:300;line-height:1">&#215;</span>&nbsp;Close');
     setView('about-view');
   };
 
   window.openProject = function(id) {
-    const p = projects[id];
+    var p = projects[id];
     if (!p) return;
-    document.getElementById('left-panel').innerHTML = `
-      <div class="logo-zone" onclick="window.goHome()">Mati Kalter</div>
-      <div style="margin-top:4px">
-        <div class="lp-proj-title">${p.title}</div>
-        <div class="lp-proj-year">${p.year}</div>
-        <div class="lp-proj-tags">${p.tags.map(t=>`<span class="lp-proj-tag">${t}</span>`).join('')}</div>
-        <div class="lp-proj-desc">${p.desc||'Project description coming soon.'}</div>
-      </div>`;
-    const hero = document.getElementById('proj-hero');
+
+    document.getElementById('left-panel').innerHTML =
+      '<div class="logo-zone" onclick="window.goHome()">Mati Kalter</div>'
+      + '<div style="margin-top:4px">'
+      + '<div class="lp-proj-title">' + p.title + '</div>'
+      + '<div class="lp-proj-year">' + p.year + '</div>'
+      + '<div class="lp-proj-tags">' + p.tags.map(function(t) { return '<span class="lp-proj-tag">' + t + '</span>'; }).join('') + '</div>'
+      + '<div class="lp-proj-desc">' + (p.desc || 'Project description coming soon.') + '</div>'
+      + '</div>';
+
+    var hero = document.getElementById('proj-hero');
     if (p.video) {
-      hero.innerHTML = `<iframe src="${p.video}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="width:100%;height:100%;border:0;"></iframe>`;
+      hero.innerHTML = '<iframe src="' + p.video + '" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
       hero.style.aspectRatio = '16/9';
-    } else if (p.images.length) {
-      hero.innerHTML = `<img src="${p.images[0]}" alt="${p.title}">`;
+    } else if (p.images && p.images.length) {
+      hero.innerHTML = '<img src="' + p.images[0] + '" alt="' + p.title + '">';
       hero.style.aspectRatio = '';
     } else {
-      hero.innerHTML = `<span style="font-size:11px;color:#bbb;text-transform:uppercase;letter-spacing:.08em">${p.title} — media</span>`;
+      hero.innerHTML = '<span style="font-size:11px;color:#bbb;text-transform:uppercase;letter-spacing:.08em">' + p.title + ' \u2014 media</span>';
       hero.style.aspectRatio = '';
     }
-    const grid = document.getElementById('proj-media-grid');
-    grid.innerHTML = p.images.slice(1).map(src=>`<div class="proj-media-item"><img src="${src}" alt=""></div>`).join('')
-      || '<div class="proj-media-item"><
+
+    var grid = document.getElementById('proj-media-grid');
+    var extraImages = p.images ? p.images.slice(p.video ? 0 : 1) : [];
+    grid.innerHTML = extraImages.map(function(src) {
+      return '<div class="proj-media-item"><img src="' + src + '" alt=""></div>';
+    }).join('') || '<div class="proj-media-item"></div><div class="proj-media-item"></div>';
+
+    setView('project-view');
+  };
+
+  bindTags();
+</script>
+</body>
+</html>
