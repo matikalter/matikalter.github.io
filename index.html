@@ -106,7 +106,7 @@
         <a href="https://linkedin.com/in/YOUR_HANDLE" target="_blank" class="social-icon" title="LinkedIn">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><line x1="8" y1="11" x2="8" y2="16"/><line x1="8" y1="8" x2="8" y2="8.5" stroke-width="2"/><path d="M12 11v5M12 11a3 3 0 0 1 6 0v5"/></svg>
         </a>
-        <a href="mailto:YOUR@EMAIL.COM" class="social-icon" title="Email">
+        <a href="/cdn-cgi/l/email-protection#83daccd6d1c3c6cec2cacfadc0ccce" class="social-icon" title="Email">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>
         </a>
         <span class="about-link" onclick="window.openAbout()">
@@ -132,15 +132,13 @@
 
     <div id="home-view">
       <div class="hero-reel">
-        <!-- Replace with: <video autoplay muted loop playsinline src="assets/reel.mp4" style="width:100%;height:100%;object-fit:cover;"></video> -->
-        <div class="play-btn"><div class="play-tri"></div></div>
-        <span class="reel-label">Art reel — autoplay · muted</span>
+        <iframe src="https://player.vimeo.com/video/1136277012?autoplay=1&muted=1&loop=1&background=1" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen style="width:100%;height:100%;border:0;"></iframe>
       </div>
       <div class="grid-area">
         <div class="grid-count" id="grid-count">9 projects</div>
         <div class="project-grid" id="project-grid">
           <div class="proj-card" data-tags="games 3d art-direction" onclick="window.openProject('bloom')">
-            <div class="proj-thumb"><!-- <img src="assets/bloom/thumb.jpg" alt="Bloom"> --></div>
+            <div class="proj-thumb"><img src="assets/bloom/SuperFlowerLotusGrowCinematic.gif" alt="Bloom"></div>
             <div class="proj-info"><div class="proj-title">Bloom</div><div class="proj-tags-text">Games · 3D · Art direction</div></div>
           </div>
           <div class="proj-card" data-tags="games 3d art-direction" onclick="window.openProject('consumania')">
@@ -210,10 +208,10 @@
   </div>
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
   /* ── Project data ── */
   const projects = {
-    bloom:        { title:'Bloom',               year:'2024',    tags:['Art Direction','3D Art','Games'],          desc:'Art directed a 14-person DADIU team — establishing the full visual language, characters, flora, and shader-driven environments — for a puzzle game about growth and sound.', images:[] },
+    bloom:        { title:'Bloom',               year:'2024',    tags:['Art Direction','3D Art','Games'],          desc:'Art directed a 14-person DADIU team — establishing the full visual language, characters, flora, and shader-driven environments — for a puzzle game about growth and sound.', video:'https://www.youtube.com/embed/LUhEjle3jiI?autoplay=1&mute=1&loop=1&playlist=LUhEjle3jiI&rel=0&controls=1', images:[] },
     consumania:   { title:'Consumania',           year:'2024',    tags:['Art Direction','3D Art','Games'],          desc:'Solo art director and 3D artist on a satirical open-world game about consumer culture. Shaped the entire visual world from concept to in-engine assets.', images:[] },
     matilena:     { title:'Matilena',             year:'2023',    tags:['Art Direction','2D Art','Games'],          desc:'', images:[] },
     lastquestion: { title:'The Last Question',    year:'2023',    tags:['3D Art','Games'],                         desc:'', images:[] },
@@ -314,17 +312,16 @@
         <div class="lp-proj-desc">${p.desc||'Project description coming soon.'}</div>
       </div>`;
     const hero = document.getElementById('proj-hero');
-    hero.innerHTML = p.images.length
-      ? `<img src="${p.images[0]}" alt="${p.title}">`
-      : `<span style="font-size:11px;color:#bbb;text-transform:uppercase;letter-spacing:.08em">${p.title} — media</span>`;
+    if (p.video) {
+      hero.innerHTML = `<iframe src="${p.video}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="width:100%;height:100%;border:0;"></iframe>`;
+      hero.style.aspectRatio = '16/9';
+    } else if (p.images.length) {
+      hero.innerHTML = `<img src="${p.images[0]}" alt="${p.title}">`;
+      hero.style.aspectRatio = '';
+    } else {
+      hero.innerHTML = `<span style="font-size:11px;color:#bbb;text-transform:uppercase;letter-spacing:.08em">${p.title} — media</span>`;
+      hero.style.aspectRatio = '';
+    }
     const grid = document.getElementById('proj-media-grid');
     grid.innerHTML = p.images.slice(1).map(src=>`<div class="proj-media-item"><img src="${src}" alt=""></div>`).join('')
-      || '<div class="proj-media-item"></div><div class="proj-media-item"></div>';
-    setView('project-view');
-  };
-
-  /* ── Init ── */
-  bindTags();
-</script>
-</body>
-</html>
+      || '<div class="proj-media-item"><
