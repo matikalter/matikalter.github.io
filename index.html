@@ -24,7 +24,7 @@
   html, body { font-family: var(--font); background: var(--bg); color: var(--text); }
   .site { min-height: 100vh; }
 
-  /* LEFT PANEL */
+  /* ── LEFT PANEL ── */
   .left {
     position: fixed; top: 0; left: 0;
     width: var(--left-w); height: 100vh;
@@ -78,30 +78,10 @@
   .lp-proj-tag { font-size: 11px; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border); color: var(--text-muted); }
   .lp-proj-desc { font-size: 12px; color: var(--text-muted); line-height: 1.7; }
 
-  /* RIGHT PANEL */
+  /* ── RIGHT PANEL ── */
   .right { margin-left: var(--left-w); min-height: 100vh; }
 
-  /* Hero section */
-  .hero-reel {
-    height: 30vh;
-    background: #000;
-    border-bottom: 1px solid var(--border);
-    overflow: hidden;
-    position: relative;
-  }
-  .hero-reel iframe {
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    width: 177.78vh;
-    min-width: 100%;
-    height: 100%;
-    min-height: 56.25vw;
-    border: 0;
-    pointer-events: none;
-  }
-
-  /* Gallery section */
+  /* ── HOME VIEW — gallery only ── */
   .grid-area { padding: 24px; }
   .grid-count { font-size: 11px; color: var(--text-faint); margin-bottom: 18px; }
   .project-grid {
@@ -117,9 +97,7 @@
   .proj-thumb {
     aspect-ratio: 16/10;
     background: var(--bg-secondary);
-    overflow: hidden;
-    border-radius: 0;
-    display: block;
+    overflow: hidden; border-radius: 0; display: block;
   }
   .proj-thumb img {
     width: 100%; height: 100%;
@@ -128,17 +106,13 @@
   }
   .proj-card:hover .proj-thumb img { opacity: 0.85; }
   .proj-hover-name {
-    text-align: center;
-    font-size: 12px; font-weight: 400;
-    color: var(--text-muted);
-    padding: 6px 0 0;
-    opacity: 0;
-    transition: opacity 0.15s;
-    pointer-events: none;
+    text-align: center; font-size: 12px; font-weight: 400;
+    color: var(--text-muted); padding: 6px 0 0;
+    opacity: 0; transition: opacity 0.15s; pointer-events: none;
   }
   .proj-card:hover .proj-hover-name { opacity: 1; }
 
-  /* Project page */
+  /* ── PROJECT PAGE ── */
   .proj-page { display: none; }
   .proj-page.visible { display: block; }
   .back-link {
@@ -164,23 +138,47 @@
   }
   .proj-media-item img { width: 100%; height: 100%; object-fit: cover; }
 
-  /* About view */
-  .about-view { display: none; padding: 40px 48px; max-width: 640px; }
-  .about-view.visible { display: block; }
-  .about-bio { font-size: 15px; color: var(--text-muted); line-height: 1.8; margin-bottom: 32px; }
-  .about-section { margin-bottom: 28px; }
+  /* ── ABOUT VIEW — 2 column grid ── */
+  .about-view { display: none; min-height: 100vh; }
+  .about-view.visible {
+    display: grid;
+    grid-template-columns: 40% 60%;
+    min-height: 100vh;
+  }
+
+  /* Left col: text */
+  .about-text-col { padding: 40px 40px 40px 48px; }
+  .about-bio { font-size: 14px; color: var(--text-muted); line-height: 1.8; margin-bottom: 32px; }
+  .about-section { margin-bottom: 24px; }
   .about-section-title {
     font-size: 10px; color: var(--text-faint);
     text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px;
   }
-  .about-item { font-size: 13px; color: var(--text-muted); padding: 7px 0; border-top: 1px solid var(--border); line-height: 1.5; }
+  .about-item { font-size: 13px; color: var(--text-muted); padding: 5px 0; line-height: 1.5; }
   .about-item span { color: var(--text-faint); }
+
+  /* Right col: reel anchored to bottom-right */
+  .about-reel-col { position: relative; min-height: 100vh; }
+  .about-reel-wrap {
+    position: absolute;
+    bottom: 24px; right: 24px;
+    width: calc(100% - 48px);
+    aspect-ratio: 16/9;
+    overflow: hidden;
+    background: #000;
+  }
+  .about-reel-wrap iframe {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    border: 0;
+  }
 </style>
 </head>
 <body>
 <div class="site">
 
-  <!-- LEFT PANEL -->
+  <!-- ── LEFT PANEL ── -->
   <div class="left" id="left-panel">
     <div class="logo-zone" onclick="window.goHome()">Mati Kalter</div>
     <div class="identity">
@@ -216,24 +214,14 @@
     </div>
   </div>
 
-  <!-- RIGHT PANEL -->
+  <!-- ── RIGHT PANEL ── -->
   <div class="right">
 
     <!-- HOME VIEW -->
     <div id="home-view">
-
-      <!-- Hero section -->
-      <div class="hero-reel">
-        <iframe src="https://player.vimeo.com/video/1136277012?autoplay=1&muted=1&loop=1&background=1"
-                allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
-      </div>
-
-      <!-- Gallery section -->
       <div class="grid-area">
         <div class="grid-count" id="grid-count"></div>
-        <div class="project-grid" id="project-grid">
-          <!-- Cards are injected by JS from the projects array below -->
-        </div>
+        <div class="project-grid" id="project-grid"></div>
       </div>
     </div>
 
@@ -248,22 +236,30 @@
 
     <!-- ABOUT VIEW -->
     <div id="about-view" class="about-view">
-      <div class="about-bio">Visual designer working in games — art direction, 3D/2D art, and animation. My background spans indie game development as art director and game artist, alongside motion design and illustration.</div>
-      <div class="about-section">
-        <div class="about-section-title">Education</div>
-        <div class="about-item">MA Visual Game and Media Design <span>— Royal Danish Academy, 2023–2025</span></div>
-        <div class="about-item">B.Des Visual Communication <span>— Bezalel Academy of Arts and Design, 2016–2020</span></div>
+      <div class="about-text-col">
+        <div class="about-bio">Visual designer working in games — art direction, 3D/2D art, and animation. My background spans indie game development as art director and game artist, alongside motion design and illustration.</div>
+        <div class="about-section">
+          <div class="about-section-title">Education</div>
+          <div class="about-item">MA Visual Game and Media Design <span>— Royal Danish Academy, 2023–2025</span></div>
+          <div class="about-item">B.Des Visual Communication <span>— Bezalel Academy of Arts and Design, 2016–2020</span></div>
+        </div>
+        <div class="about-section">
+          <div class="about-section-title">Awards</div>
+          <div class="about-item">Best Project — International Digital Media Competition, TISFF <span>2022</span></div>
+          <div class="about-item">Sandberg Award — Bezalel Academy of Arts and Design <span>2021</span></div>
+        </div>
+        <div class="about-section">
+          <div class="about-section-title">Conferences &amp; Exhibitions</div>
+          <div class="about-item">Speaker — m:brane Forum <span>2025</span></div>
+          <div class="about-item">AlefAlefAlef — Gibberish, Exhibition <span>2023</span></div>
+          <div class="about-item">LaCulture/Home, Exhibition <span>2018</span></div>
+        </div>
       </div>
-      <div class="about-section">
-        <div class="about-section-title">Awards</div>
-        <div class="about-item">Best Project — International Digital Media Competition, TISFF <span>2022</span></div>
-        <div class="about-item">Sandberg Award — Bezalel Academy of Arts and Design <span>2021</span></div>
-      </div>
-      <div class="about-section">
-        <div class="about-section-title">Conferences &amp; Exhibitions</div>
-        <div class="about-item">Speaker — m:brane Forum <span>2025</span></div>
-        <div class="about-item">AlefAlefAlef — Gibberish, Exhibition <span>2023</span></div>
-        <div class="about-item">LaCulture/Home, Exhibition <span>2018</span></div>
+      <div class="about-reel-col">
+        <div class="about-reel-wrap">
+          <iframe src="https://player.vimeo.com/video/1136277012?autoplay=1&muted=1&loop=1&background=1"
+                  allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+        </div>
       </div>
     </div>
 
@@ -274,51 +270,23 @@
   /* =====================================================================
      PROJECT LIST
      -----------------------------------------------------------------------
-     Each project has these fields:
-
-       id        — matches the folder name in assets/ (e.g. 'being' → assets/being/)
-       title     — display name shown on hover and in left panel
-       year      — shown in left panel on project page
-       tags      — array of filter keys this project belongs to.
-                   Available keys:
-                     'games'         → Games
-                     'animation'     → Animation
-                     'art-direction' → Art Direction
-                     'visual-design' → Visual Design
-                     'tech-art'      → Tech Art
-                     'motion'        → Motion
-                     '3d'            → 3D
-                     '2d'            → 2D
-                     'illustration'  → Illustration
-                     'solo-dev'      → Solo Dev
-       desc      — short description shown in left panel (1–2 sentences)
-       thumb     — filename of thumbnail image inside assets/[id]/
-                   e.g. 'thumb.jpg' → assets/being/thumb.jpg
-                   leave as '' if no thumbnail yet
-       video     — YouTube or Vimeo embed URL for the project hero (or '' for none)
-                   YouTube: 'https://www.youtube.com/embed/VIDEO_ID?autoplay=1&mute=1&loop=1&playlist=VIDEO_ID&rel=0'
-                   Vimeo:   'https://player.vimeo.com/video/VIDEO_ID?autoplay=1&muted=1&loop=1'
-       images    — array of additional image filenames inside assets/[id]/
-                   e.g. ['01.jpg', '02.jpg'] → assets/being/01.jpg etc.
-       hidden    — true = not shown in gallery, false = visible
-                   Toggle this to show/hide a project without deleting it.
-
-     ORDER in this array = order projects appear in the gallery.
+     id        — must match folder name in assets/ exactly
+     title     — display name
+     year      — year string
+     tags      — array of filter keys:
+                   'games' | 'animation' | 'art-direction' | 'visual-design'
+                   'tech-art' | 'motion' | '3d' | '2d' | 'illustration' | 'solo-dev'
+     desc      — short description for project left panel (1–2 sentences)
+     thumb     — thumbnail filename inside assets/[id]/  ('' = no thumbnail)
+     video     — embed URL for project hero ('' = none)
+                   YouTube: 'https://www.youtube.com/embed/ID?autoplay=1&mute=1&loop=1&playlist=ID&rel=0'
+                   Vimeo:   'https://player.vimeo.com/video/ID?autoplay=1&muted=1&loop=1'
+     images    — array of additional image filenames inside assets/[id]/
+     hidden    — true = hidden from gallery  |  false = visible
+     ORDER in array = gallery display order
      ===================================================================== */
   var projects = [
 
-      {
-      id:     'bloom',
-      title:  'Bloom',
-      year:   '2024',
-      tags:   ['games', 'art-direction', 'tech-art', '3d'],
-      desc:   'Art directed a 14-person DADIU team — establishing the full visual language, characters, flora, and shader-driven environments — for a puzzle game about growth and sound.',
-      thumb:  'SuperFlowerLotusGrowCinematic.gif',
-      video:  'https://www.youtube.com/embed/LUhEjle3jiI?autoplay=1&mute=1&loop=1&playlist=LUhEjle3jiI&rel=0&controls=1',
-      images: [],
-      hidden: false
-    },
-    
     {
       id:     'being',
       title:  'Being',
@@ -327,6 +295,18 @@
       desc:   '',
       thumb:  '',
       video:  '',
+      images: [],
+      hidden: false
+    },
+
+    {
+      id:     'bloom',
+      title:  'Bloom',
+      year:   '2024',
+      tags:   ['games', 'art-direction', 'tech-art', '3d'],
+      desc:   'Art directed a 14-person DADIU team — establishing the full visual language, characters, flora, and shader-driven environments — for a puzzle game about growth and sound.',
+      thumb:  'SuperFlowerLotusGrowCinematic.gif',
+      video:  'https://www.youtube.com/embed/LUhEjle3jiI?autoplay=1&mute=1&loop=1&playlist=LUhEjle3jiI&rel=0&controls=1',
       images: [],
       hidden: false
     },
@@ -524,9 +504,8 @@
     var grid = document.getElementById('project-grid');
     grid.innerHTML = projects.map(function(p) {
       if (p.hidden) return '';
-      var thumbSrc = p.thumb ? 'assets/' + p.id + '/' + p.thumb : '';
-      var thumbHTML = thumbSrc
-        ? '<img src="' + thumbSrc + '" alt="' + p.title + '">'
+      var thumbHTML = p.thumb
+        ? '<img src="assets/' + p.id + '/' + p.thumb + '" alt="' + p.title + '">'
         : '';
       return '<div class="proj-card" data-tags="' + p.tags.join(' ') + '" onclick="window.openProject(\'' + p.id + '\')">'
         + '<div class="proj-thumb">' + thumbHTML + '</div>'
@@ -564,13 +543,22 @@
     if (c) c.textContent = visible + ' project' + (visible !== 1 ? 's' : '');
   }
 
+  /* setView — uses correct display type per view */
   function setView(id) {
+    var displayTypes = {
+      'home-view':    'block',
+      'project-view': 'block',
+      'about-view':   'grid'   /* must stay grid for 2-col layout */
+    };
     ['home-view', 'project-view', 'about-view'].forEach(function(v) {
       var el = document.getElementById(v);
       if (el) { el.style.display = 'none'; el.classList.remove('visible'); }
     });
     var target = document.getElementById(id);
-    if (target) { target.style.display = 'block'; target.classList.add('visible'); }
+    if (target) {
+      target.style.display = displayTypes[id] || 'block';
+      target.classList.add('visible');
+    }
     window.scrollTo(0, 0);
   }
 
