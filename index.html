@@ -10,11 +10,8 @@
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    /* ── LAYOUT ── */
     --left-w: 340px;
     --radius: 6px;
-
-    /* ── COLORS ── */
     --border:       #e0e0e0;
     --text:         #111;
     --text-muted:   #888;
@@ -22,70 +19,45 @@
     --bg:           #fff;
     --bg-secondary: #f7f7f6;
     --bg-tertiary:  #f0efed;
-
-    /* ── FONT FAMILY ── */
     --font: 'Geist', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
 
-    /* ================================================================
-       TYPOGRAPHY SYSTEM
-       ----------------------------------------------------------------
-       7 named styles. Each has 4 parameters:
-         size     — font-size
-         weight   — font-weight (300 light / 400 regular / 500 medium)
-         leading  — line-height
-         tracking — letter-spacing
-
-       To apply a style to any element, use all 4 variables together:
-         font-size:      var(--title-size);
-         font-weight:    var(--title-weight);
-         line-height:    var(--title-leading);
-         letter-spacing: var(--title-tracking);
-
-       To override a single parameter, add it after the variable line:
-         font-size:      var(--body-size);
-         font-weight:    var(--body-weight);
-         line-height:    var(--body-leading);
-         letter-spacing: var(--body-tracking);
-         font-size: 15px;   ← this overrides just size, rest stays
-       ================================================================ */
-
-    /* Title (xxl) — logo / site name */
+    /* Title (xxl) */
     --title-size:     18px;
     --title-weight:   500;
     --title-leading:  1.2;
     --title-tracking: -0.02em;
 
-    /* Heading 1 (xl) — project title in left panel */
+    /* Heading 1 (xl) */
     --h1-size:     20px;
     --h1-weight:   500;
     --h1-leading:  1.2;
     --h1-tracking: -0.01em;
 
-    /* Heading 2 (lg) — about bio paragraph */
+    /* Heading 2 (lg) */
     --h2-size:     14px;
     --h2-weight:   400;
     --h2-leading:  1.5;
     --h2-tracking: 0em;
 
-    /* Large Body (md) — about items, project desc */
+    /* Large Body (md) */
     --large-body-size:     12px;
     --large-body-weight:   400;
     --large-body-leading:  1.6;
     --large-body-tracking: 0em;
 
-    /* Body (base) — bio, hover name, year, general UI text */
+    /* Body (base) */
     --body-size:     12px;
     --body-weight:   400;
     --body-leading:  1.6;
     --body-tracking: 0em;
 
-    /* Tags (sm) — filter tags, project tags, back link, grid count */
+    /* Tags (sm) */
     --tags-size:     11px;
     --tags-weight:   400;
     --tags-leading:  1.4;
     --tags-tracking: 0em;
 
-    /* Labels (xs) — section headings like FILTER, EDUCATION */
+    /* Labels (xs) */
     --labels-size:     10px;
     --labels-weight:   400;
     --labels-leading:  1.4;
@@ -95,7 +67,7 @@
   html, body { font-family: var(--font); background: var(--bg); color: var(--text); overflow: hidden; height: 100%; }
   .site { height: 100vh; }
 
-  /* ── LEFT PANEL ── */
+  /* LEFT PANEL */
   .left {
     position: fixed; top: 0; left: 0;
     width: var(--left-w); height: 100vh;
@@ -107,126 +79,36 @@
     scrollbar-width: none; z-index: 100;
   }
   .left::-webkit-scrollbar { display: none; }
-
-  /* Title style */
-  .logo-zone {
-    font-size:      var(--title-size);
-    font-weight:    var(--title-weight);
-    line-height:    var(--title-leading);
-    letter-spacing: var(--title-tracking);
-    margin-bottom: 20px; cursor: pointer; color: var(--text); user-select: none;
-  }
+  .logo-zone { font-size: var(--title-size); font-weight: var(--title-weight); line-height: var(--title-leading); letter-spacing: var(--title-tracking); margin-bottom: 20px; cursor: pointer; color: var(--text); user-select: none; }
   .logo-zone:hover { opacity: 0.7; }
-
   .identity { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
-
-  /* Body style */
-  .bio {
-    font-size:      var(--body-size);
-    font-weight:    var(--body-weight);
-    line-height:    var(--body-leading);
-    letter-spacing: var(--body-tracking);
-    color: var(--text-muted); margin-bottom: 12px;
-  }
-
+  .bio { font-size: var(--body-size); font-weight: var(--body-weight); line-height: var(--body-leading); letter-spacing: var(--body-tracking); color: var(--text-muted); margin-bottom: 12px; }
   .social-row { display: flex; align-items: center; gap: 14px; }
-  .social-icon {
-    width: 16px; height: 16px; color: var(--text-faint);
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    transition: color 0.15s; text-decoration: none; flex-shrink: 0;
-  }
+  .social-icon { width: 16px; height: 16px; color: var(--text-faint); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color 0.15s; text-decoration: none; flex-shrink: 0; }
   .social-icon:hover { color: var(--text); }
-
-  /* Body style */
-  .about-link {
-    font-size:      var(--body-size);
-    font-weight:    var(--body-weight);
-    line-height:    var(--body-leading);
-    letter-spacing: var(--body-tracking);
-    color: var(--text-faint); cursor: pointer;
-    margin-left: auto; display: flex; align-items: center; gap: 3px;
-    transition: color 0.15s; white-space: nowrap;
-  }
+  .about-link { font-size: var(--body-size); font-weight: var(--body-weight); line-height: var(--body-leading); letter-spacing: var(--body-tracking); color: var(--text-faint); cursor: pointer; margin-left: auto; display: flex; align-items: center; gap: 3px; transition: color 0.15s; white-space: nowrap; }
   .about-link:hover { color: var(--text); }
-
-  /* Labels style */
-  .filter-label {
-    font-size:      var(--labels-size);
-    font-weight:    var(--labels-weight);
-    line-height:    var(--labels-leading);
-    letter-spacing: var(--labels-tracking);
-    color: var(--text-faint); text-transform: uppercase; margin: 0 0 8px;
-  }
-
+  .filter-label { font-size: var(--labels-size); font-weight: var(--labels-weight); line-height: var(--labels-leading); letter-spacing: var(--labels-tracking); color: var(--text-faint); text-transform: uppercase; margin: 0 0 8px; }
   .tags { display: flex; flex-wrap: wrap; gap: 5px; }
-
-  /* Tags style */
-  .tag {
-    font-size:      var(--tags-size);
-    font-weight:    var(--tags-weight);
-    line-height:    var(--tags-leading);
-    letter-spacing: var(--tags-tracking);
-    padding: 3px 9px; border-radius: 20px;
-    border: 1px solid var(--border); color: var(--text-muted);
-    cursor: pointer; transition: all 0.15s; background: transparent; user-select: none;
-  }
+  .tag { font-size: var(--tags-size); font-weight: var(--tags-weight); line-height: var(--tags-leading); letter-spacing: var(--tags-tracking); padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; transition: all 0.15s; background: transparent; user-select: none; }
   .tag:hover { border-color: #999; color: var(--text); }
   .tag.active { background: var(--text); color: #fff; border-color: var(--text); }
-
-  /* ── LEFT PANEL — PROJECT VIEW ── */
-
-  /* Heading 1 style */
-  .lp-proj-title {
-    font-size:      var(--h1-size);
-    font-weight:    var(--h1-weight);
-    line-height:    var(--h1-leading);
-    letter-spacing: var(--h1-tracking);
-    margin-bottom: 4px;
-  }
-
-  /* Body style */
-  .lp-proj-year {
-    font-size:      var(--body-size);
-    font-weight:    var(--body-weight);
-    line-height:    var(--body-leading);
-    letter-spacing: var(--body-tracking);
-    color: var(--text-faint); margin-bottom: 16px;
-  }
-
+  .lp-proj-title { font-size: var(--h1-size); font-weight: var(--h1-weight); line-height: var(--h1-leading); letter-spacing: var(--h1-tracking); margin-bottom: 4px; }
+  .lp-proj-year { font-size: var(--body-size); font-weight: var(--body-weight); line-height: var(--body-leading); letter-spacing: var(--body-tracking); color: var(--text-faint); margin-bottom: 16px; }
   .lp-proj-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 16px; }
+  .lp-proj-tag { font-size: var(--tags-size); font-weight: var(--tags-weight); line-height: var(--tags-leading); letter-spacing: var(--tags-tracking); padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border); color: var(--text-muted); }
+  .lp-proj-desc { font-size: var(--body-size); font-weight: var(--body-weight); line-height: var(--body-leading); letter-spacing: var(--body-tracking); color: var(--text-muted); }
 
-  /* Tags style */
-  .lp-proj-tag {
-    font-size:      var(--tags-size);
-    font-weight:    var(--tags-weight);
-    line-height:    var(--tags-leading);
-    letter-spacing: var(--tags-tracking);
-    padding: 3px 9px; border-radius: 20px;
-    border: 1px solid var(--border); color: var(--text-muted);
-  }
-
-  /* Body style */
-  .lp-proj-desc {
-    font-size:      var(--body-size);
-    font-weight:    var(--body-weight);
-    line-height:    var(--body-leading);
-    letter-spacing: var(--body-tracking);
-    color: var(--text-muted);
-  }
-
-  /* ── RIGHT PANEL ── */
+  /* RIGHT PANEL */
   .right { position: fixed; left: var(--left-w); top: 0; right: 0; bottom: 0; overflow: hidden; }
 
-  /* ── CANVAS ── */
+  /* CANVAS */
   #float-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: grab; user-select: none; }
   #float-canvas.panning { cursor: grabbing; }
 
-  /* Shuffle button */
   #shuffle-btn {
     position: absolute; top: 20px; right: 20px; z-index: 50;
-    font-family: var(--font);
-    font-size:      var(--tags-size);
-    font-weight:    var(--tags-weight);
+    font-family: var(--font); font-size: var(--tags-size); font-weight: var(--tags-weight);
     color: var(--text-muted); background: var(--bg);
     border: 1px solid var(--border); padding: 6px 14px;
     cursor: pointer; transition: all 0.15s; user-select: none; pointer-events: all;
@@ -234,121 +116,47 @@
   #shuffle-btn:hover { color: var(--text); border-color: #999; }
   #shuffle-btn.exploded { background: var(--text); color: #fff; border-color: var(--text); }
 
-  /* Tags style */
-  #grid-count {
-    position: absolute; top: 24px; left: 20px; z-index: 50;
-    font-size:      var(--tags-size);
-    font-weight:    var(--tags-weight);
-    color: var(--text-faint); pointer-events: none;
-  }
+  #grid-count { position: absolute; top: 24px; left: 20px; z-index: 50; font-size: var(--tags-size); font-weight: var(--tags-weight); color: var(--text-faint); pointer-events: none; }
 
-  /* ── FLOATING CARDS ── */
+  /* CARDS */
   .proj-card { position: absolute; pointer-events: none; user-select: none; }
   .proj-card.fhidden { visibility: hidden; }
   .proj-thumb { background: var(--bg-secondary); overflow: hidden; display: block; }
   .proj-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  /* hit layer intercepts pointer events for hover + click */
   .card-hit { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: all; cursor: pointer; }
-
-  /* Body style */
-  .proj-hover-name {
-    font-size:      var(--body-size);
-    font-weight:    var(--body-weight);
-    line-height:    var(--body-leading);
-    letter-spacing: var(--body-tracking);
-    text-align: center; color: var(--text-muted);
-    padding: 6px 0 0; opacity: 0;
-    transition: opacity 0.15s; pointer-events: none;
-  }
+  .proj-hover-name { font-size: var(--body-size); font-weight: var(--body-weight); line-height: var(--body-leading); letter-spacing: var(--body-tracking); text-align: center; color: var(--text-muted); padding: 6px 0 0; opacity: 0; transition: opacity 0.15s; pointer-events: none; }
   .proj-card:hover .proj-hover-name { opacity: 1; }
 
-  /* ── PROJECT PAGE ── */
+  /* PROJECT VIEW */
   #project-view { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: none; overflow-y: auto; background: var(--bg); z-index: 60; }
   #project-view.visible { display: block; }
-
-  /* Tags style */
-  .back-link {
-    font-size:      var(--tags-size);
-    font-weight:    var(--tags-weight);
-    line-height:    var(--tags-leading);
-    letter-spacing: var(--tags-tracking);
-    color: var(--text-faint); cursor: pointer;
-    padding: 20px 24px 0; display: inline-flex; align-items: center; gap: 5px;
-    transition: color 0.15s;
-  }
+  .back-link { font-size: var(--tags-size); font-weight: var(--tags-weight); line-height: var(--tags-leading); letter-spacing: var(--tags-tracking); color: var(--text-faint); cursor: pointer; padding: 20px 24px 0; display: inline-flex; align-items: center; gap: 5px; transition: color 0.15s; }
   .back-link:hover { color: var(--text); }
-
   .proj-content { padding: 16px 24px 48px; }
-  .proj-hero {
-    width: 100%; aspect-ratio: 16/8;
-    background: var(--bg-tertiary); border-radius: var(--radius);
-    overflow: hidden; margin-bottom: 16px;
-    display: flex; align-items: center; justify-content: center;
-    position: relative;
-  }
+  .proj-hero { width: 100%; aspect-ratio: 16/8; background: var(--bg-tertiary); border-radius: var(--radius); overflow: hidden; margin-bottom: 16px; display: flex; align-items: center; justify-content: center; position: relative; }
   .proj-hero img { width: 100%; height: 100%; object-fit: cover; }
   .proj-hero iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
   .proj-media-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
-  .proj-media-item {
-    aspect-ratio: 16/10; background: var(--bg-secondary);
-    border-radius: var(--radius); overflow: hidden;
-  }
+  .proj-media-item { aspect-ratio: 16/10; background: var(--bg-secondary); border-radius: var(--radius); overflow: hidden; }
   .proj-media-item img { width: 100%; height: 100%; object-fit: cover; }
 
-  /* ── ABOUT VIEW ── */
+  /* ABOUT VIEW */
   #about-view { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: none; background: var(--bg); z-index: 60; }
   #about-view.visible { display: grid; grid-template-columns: 40% 60%; }
-
   .about-text-col { padding: 40px 40px 40px 48px; overflow-y: auto; }
-
-  /* Heading 2 style */
-  .about-bio {
-    font-size:      var(--h2-size);
-    font-weight:    var(--h2-weight);
-    line-height:    var(--h2-leading);
-    letter-spacing: var(--h2-tracking);
-    color: var(--text-muted); margin-bottom: 32px;
-  }
-
+  .about-bio { font-size: var(--h2-size); font-weight: var(--h2-weight); line-height: var(--h2-leading); letter-spacing: var(--h2-tracking); color: var(--text-muted); margin-bottom: 32px; }
   .about-section { margin-bottom: 24px; }
-
-  /* Labels style */
-  .about-section-title {
-    font-size:      var(--labels-size);
-    font-weight:    var(--labels-weight);
-    line-height:    var(--labels-leading);
-    letter-spacing: var(--labels-tracking);
-    color: var(--text-faint); text-transform: uppercase; margin-bottom: 8px;
-  }
-
-  /* Large Body style */
-  .about-item {
-    font-size:      var(--large-body-size);
-    font-weight:    var(--large-body-weight);
-    line-height:    var(--large-body-leading);
-    letter-spacing: var(--large-body-tracking);
-    color: var(--text-muted); padding: 2px 0;
-  }
+  .about-section-title { font-size: var(--labels-size); font-weight: var(--labels-weight); line-height: var(--labels-leading); letter-spacing: var(--labels-tracking); color: var(--text-faint); text-transform: uppercase; margin-bottom: 8px; }
+  .about-item { font-size: var(--large-body-size); font-weight: var(--large-body-weight); line-height: var(--large-body-leading); letter-spacing: var(--large-body-tracking); color: var(--text-muted); padding: 2px 0; }
   .about-item span { color: var(--text-faint); }
-
   .about-reel-col { position: relative; min-height: 100%; }
-  .about-reel-wrap {
-    position: absolute;
-    bottom: 24px; right: 24px;
-    width: calc(100% - 48px);
-    aspect-ratio: 16/9;
-    overflow: hidden; background: #000;
-  }
-  .about-reel-wrap iframe {
-    position: absolute; top: 0; left: 0;
-    width: 100%; height: 100%; border: 0;
-  }
+  .about-reel-wrap { position: absolute; bottom: 24px; right: 24px; width: calc(100% - 48px); aspect-ratio: 16/9; overflow: hidden; background: #000; }
+  .about-reel-wrap iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
 </style>
 </head>
 <body>
 <div class="site">
 
-  <!-- ── LEFT PANEL ── -->
   <div class="left" id="left-panel">
     <div class="logo-zone" onclick="window.goHome()">Mati Kalter</div>
     <div class="identity">
@@ -384,16 +192,11 @@
     </div>
   </div>
 
-  <!-- ── RIGHT PANEL ── -->
   <div class="right" id="right-panel">
-
-    <!-- FLOATING CANVAS (home view) -->
     <div id="float-canvas">
       <div id="grid-count"></div>
       <button id="shuffle-btn" onclick="window.toggleShuffle()">Shuffle</button>
     </div>
-
-    <!-- PROJECT VIEW -->
     <div id="project-view">
       <div class="back-link" onclick="window.goHome()">&#8592; All work</div>
       <div class="proj-content">
@@ -401,8 +204,6 @@
         <div class="proj-media-grid" id="proj-media-grid"></div>
       </div>
     </div>
-
-    <!-- ABOUT VIEW -->
     <div id="about-view">
       <div class="about-text-col">
         <div class="about-bio" id="about-bio-text"></div>
@@ -431,7 +232,6 @@
         </div>
       </div>
     </div>
-
   </div>
 </div>
 
@@ -439,23 +239,19 @@
   /* ===================================================================
      EDITABLE SETTINGS
      =================================================================== */
-
-  /* Short bio — left panel under name */
   var BIO_SHORT = 'Visual designer working in games - art direction, 3D/2D art & animation.';
-
-  /* Long bio — about page */
-  var BIO_LONG = 'My background spans indie game development as an art director and 2D/3D game artist, shaping characters, environments, and cohesive visual narratives, alongside animation and illustration.';
+  var BIO_LONG  = 'My background spans indie game development as an art director and 2D/3D game artist, shaping characters, environments, and cohesive visual narratives, alongside animation and illustration.';
 
   /* ── PHYSICS SETTINGS ──────────────────────────────────────────────
-     ROWS             number of visible rows filling the screen
-     GAP              px — all margins and spacing equal this value
+     ROWS             Number of visible rows filling the screen
+     GAP              px — all spacing: top margin, bottom margin, between rows, between columns
      CARD_ASPECT      thumbnail width/height ratio
-     ROW_SCROLL_SPEED px/frame horizontal auto-scroll per row
+     ROW_SCROLL_SPEED px/frame horizontal auto-scroll (alternating per row)
      FRICTION         velocity decay per frame
-     VEL_SCALE        pan-release throw multiplier
-     EXPLODE_SPEED    initial explosion velocity (instant max)
-     MIN_DRIFT        minimum speed after explosion (never fully stops)
-     RETURN_DUR       ms for grid-return animation
+     VEL_SCALE        pan throw strength multiplier
+     EXPLODE_SPEED    max velocity on shuffle bang
+     MIN_DRIFT        minimum speed after explosion (never stops)
+     RETURN_DUR       ms for return-to-grid animation
   ──────────────────────────────────────────────────────────────────── */
   var ROWS             = 3;
   var GAP              = 40;
@@ -469,21 +265,16 @@
 
   /* =====================================================================
      PROJECT LIST
-     -----------------------------------------------------------------------
      id        — must match folder name in assets/ exactly
      title     — display name
      year      — year string
-     tags      — array of filter keys:
-                   'games' | 'animation' | 'art-direction' | 'visual-design'
-                   'tech-art' | 'motion' | '3d' | '2d' | 'illustration' | 'solo-dev'
-     desc      — short description for project left panel (1-2 sentences)
-     thumb     — thumbnail filename inside assets/[id]/  ('' = no thumbnail)
-     video     — embed URL for project hero ('' = none)
-                   YouTube: 'https://www.youtube.com/embed/ID?autoplay=1&mute=1&loop=1&playlist=ID&rel=0'
-                   Vimeo:   'https://player.vimeo.com/video/ID?autoplay=1&muted=1&loop=1'
+     tags      — filter keys
+     desc      — short description for left panel
+     thumb     — thumbnail filename inside assets/[id]/ ('' = none)
+     video     — embed URL for hero ('' = none)
      images    — array of additional image filenames inside assets/[id]/
-     hidden    — true = hidden from gallery  |  false = visible
-     ORDER in array = gallery display order
+     hidden    — true = hidden | false = visible
+     ORDER = gallery display order
      ===================================================================== */
   var projects = [
 
@@ -657,9 +448,6 @@
 
   ];
 
-  /* =====================================================================
-     FILTER DEFINITIONS — order controls left panel display order
-     ===================================================================== */
   var filterDefs = [
     { key: 'all',           label: 'All' },
     { key: 'games',         label: 'Games' },
@@ -676,45 +464,91 @@
 
   /* =====================================================================
      PHYSICS ENGINE
+     =====================================================================
+
+     TORUS APPROACH — offset-based, period-aware
+     ─────────────────────────────────────────────────────────────────────
+     Each card has a fixed grid position: (baseX(col), baseY(row)).
+     We never move cards individually in scroll mode. Instead we maintain:
+       rowOffset[r]  — horizontal offset applied to ALL cards in row r
+       panOffsetY    — vertical offset applied to ALL cards
+
+     The torus periods are:
+       rowPeriod = perRow * (CW + GAP)   — total width of one full row tile
+       colPeriod = ROWS  * (CH + GAP)    — total height of one full column tile
+
+     To position card (col, row):
+       x = (baseX(col) + rowOffset[row]) mod rowPeriod   → mapped to visible range
+       y = (baseY(row) + panOffsetY)     mod colPeriod   → mapped to visible range
+
+     The modulo keeps offsets within [0, period) then we shift so cards
+     are centred in the viewport.
+
+     Because baseX/baseY never change, resizing just recalculates CW/CH/GAP
+     and the card dimensions — the offsets naturally produce correct positions.
      ===================================================================== */
+
   var activeFilter = 'all';
   var cards        = [];
   var animFrame    = null;
   var mode         = 'scroll';
   var returnStart  = 0;
 
-  /* Computed layout — recalculated on resize */
-  var CW = 1, CH = 1, THUMB_H = 1;
-  var perRow = 1;
+  /* Layout */
+  var CW = 1, CH = 1, THUMB_H = 1, perRow = 1;
 
-  /* Per-row horizontal scroll offset; shared vertical pan offset */
-  var rowOffset  = [0, 0, 0];
+  /* Scroll state */
+  var rowOffset  = [0, 0, 0];   /* one per row */
   var panOffsetY = 0;
 
-  /* Pan velocity */
+  /* Pan inertia */
   var panVelX = 0, panVelY = 0;
   var panning = false, panMoved = false;
   var panLastX = 0, panLastY = 0, panLastT = 0;
   var panHistX = [], panHistY = [], panHistT = [];
 
-  /* Explode state per card id */
+  /* Explode state per card id: { vx, vy, x, y, driftAngle } */
   var exState = {};
 
   function getRP() { return document.getElementById('right-panel'); }
 
-  /* ── Layout calculation ── */
+  /* ── Layout ── */
   function calcLayout() {
-    var rp = getRP();
-    var H  = rp.offsetHeight;
+    var H = getRP().offsetHeight;
+    /* GAP appears (ROWS+1) times vertically */
     THUMB_H = (H - GAP * (ROWS + 1)) / ROWS;
-    CH      = THUMB_H + 22;
+    CH      = THUMB_H + 22;   /* thumb + label */
     CW      = Math.round(THUMB_H * CARD_ASPECT);
   }
 
-  function baseX(colIdx) { return GAP + colIdx * (CW + GAP); }
-  function baseY(rowIdx) { return GAP + rowIdx * (CH + GAP); }
+  /* Fixed grid positions — never change after init */
+  function baseX(col) { return GAP + col * (CW + GAP); }
+  function baseY(row) { return GAP + row * (CH + GAP); }
 
-  /* ── Build cards ── */
+  /* ── Torus mod (always positive) ── */
+  function mod(v, p) { return ((v % p) + p) % p; }
+
+  /* Map a scrolled x coordinate to screen space with seamless torus.
+     rowPeriod = total width of all cards in a row (including gaps).
+     We tile the row so that it fills the canvas width — cards appear
+     at positions: baseX(col) + rowOffset + k*rowPeriod for integer k.
+     We pick the k that places x in [-CW, W+CW) to show edge-crossing. */
+  function torusScreenX(rawX, rowPeriod) {
+    var W = getRP().offsetWidth;
+    var x = mod(rawX, rowPeriod);
+    /* shift so x is in range that covers the canvas */
+    if (x > W + CW) x -= rowPeriod;
+    return x;
+  }
+
+  function torusScreenY(rawY, colPeriod) {
+    var H = getRP().offsetHeight;
+    var y = mod(rawY, colPeriod);
+    if (y > H + CH) y -= colPeriod;
+    return y;
+  }
+
+  /* ── Build cards (once) ── */
   function initCards() {
     calcLayout();
     var canvas  = document.getElementById('float-canvas');
@@ -727,8 +561,6 @@
     visible.forEach(function(p, i) {
       var rowIdx = Math.floor(i / perRow);
       var colIdx = i % perRow;
-      var x = baseX(colIdx);
-      var y = baseY(rowIdx);
 
       var el = document.createElement('div');
       el.className = 'proj-card';
@@ -736,8 +568,6 @@
       el.setAttribute('data-col', colIdx);
       el.setAttribute('data-id',  p.id);
       el.style.width = CW + 'px';
-      el.style.left  = x + 'px';
-      el.style.top   = y + 'px';
 
       var thumbHTML = p.thumb
         ? '<img src="assets/' + p.id + '/' + p.thumb + '" alt="' + p.title + '" draggable="false">'
@@ -747,13 +577,16 @@
         + '<div class="proj-thumb" style="width:' + CW + 'px;height:' + THUMB_H + 'px;">' + thumbHTML + '</div>'
         + '<div class="proj-hover-name">' + p.title + '</div>';
 
+      var x = baseX(colIdx), y = baseY(rowIdx);
+      el.style.left = x + 'px';
+      el.style.top  = y + 'px';
       canvas.appendChild(el);
 
       exState[p.id] = { vx: 0, vy: 0, x: x, y: y, driftAngle: 0 };
       cards.push({ el: el, id: p.id, tags: p.tags, rowIdx: rowIdx, colIdx: colIdx });
     });
 
-    canvas.addEventListener('click', function(e) {
+    document.getElementById('float-canvas').addEventListener('click', function(e) {
       if (panMoved) return;
       var hit = e.target.classList && e.target.classList.contains('card-hit') ? e.target :
                 (e.target.closest ? e.target.closest('.card-hit') : null);
@@ -764,10 +597,6 @@
     updateCount();
     attachPan();
   }
-
-  /* ── Torus wrap ── */
-  function torusX(x, W) { var s = W + CW; return ((x + CW) % s + s) % s - CW; }
-  function torusY(y, H) { var s = H + CH; return ((y + CH) % s + s) % s - CH; }
 
   /* ── Filter ── */
   function applyFilter() {
@@ -787,22 +616,21 @@
 
   /* ── Tick ── */
   function tick() {
-    var rp  = getRP();
-    var W   = rp.offsetWidth;
-    var H   = rp.offsetHeight;
-    var now = performance.now();
+    var now       = performance.now();
+    var rowPeriod = perRow * (CW + GAP);
+    var colPeriod = ROWS   * (CH + GAP);
 
     if (mode === 'returning') {
       var t    = Math.min(1, (now - returnStart) / RETURN_DUR);
-      var ease = t * t * (3 - 2 * t);  /* smoothstep ease-in-out */
+      var ease = t * t * (3 - 2 * t);  /* smoothstep */
       cards.forEach(function(s) {
         if (s.el.classList.contains('fhidden')) return;
         var ex = exState[s.id];
-        var x  = ex._fromX + (baseX(s.colIdx) - ex._fromX) * ease;
-        var y  = ex._fromY + (baseY(s.rowIdx) - ex._fromY) * ease;
-        ex.x = x; ex.y = y;
-        s.el.style.left = x + 'px';
-        s.el.style.top  = y + 'px';
+        var tx = baseX(s.colIdx), ty = baseY(s.rowIdx);
+        ex.x = ex._fromX + (tx - ex._fromX) * ease;
+        ex.y = ex._fromY + (ty - ex._fromY) * ease;
+        s.el.style.left = ex.x + 'px';
+        s.el.style.top  = ex.y + 'px';
       });
       if (t >= 1) {
         mode = 'scroll';
@@ -810,11 +638,14 @@
       }
 
     } else if (mode === 'scroll') {
+      /* Decay pan inertia */
       if (!panning) {
         panVelX *= FRICTION; panVelY *= FRICTION;
         if (Math.abs(panVelX) < 0.005) panVelX = 0;
         if (Math.abs(panVelY) < 0.005) panVelY = 0;
       }
+
+      /* Advance row offsets */
       for (var r = 0; r < ROWS; r++) {
         var dir = (r % 2 === 0) ? 1 : -1;
         rowOffset[r] += dir * ROW_SCROLL_SPEED;
@@ -822,12 +653,13 @@
       }
       if (!panning) panOffsetY += panVelY;
 
+      /* Position each card using torus-mapped offsets */
       cards.forEach(function(s) {
         if (s.el.classList.contains('fhidden')) return;
-        var ex = exState[s.id];
-        var x  = torusX(baseX(s.colIdx) + rowOffset[s.rowIdx], W);
-        var y  = torusY(baseY(s.rowIdx) + panOffsetY, H);
-        ex.x = x; ex.y = y;
+        var rawX = baseX(s.colIdx) + rowOffset[s.rowIdx];
+        var rawY = baseY(s.rowIdx) + panOffsetY;
+        var x = torusScreenX(rawX, rowPeriod);
+        var y = torusScreenY(rawY, colPeriod);
         s.el.style.left = x + 'px';
         s.el.style.top  = y + 'px';
       });
@@ -847,8 +679,10 @@
           ex.vx = Math.cos(ex.driftAngle) * MIN_DRIFT;
           ex.vy = Math.sin(ex.driftAngle) * MIN_DRIFT;
         }
-        ex.x = torusX(ex.x + ex.vx, W);
-        ex.y = torusY(ex.y + ex.vy, H);
+        /* Simple canvas-size torus in exploded mode */
+        var W = getRP().offsetWidth, H = getRP().offsetHeight;
+        ex.x = mod(ex.x + ex.vx + CW, W + CW) - CW;
+        ex.y = mod(ex.y + ex.vy + CH, H + CH) - CH;
         s.el.style.left = ex.x + 'px';
         s.el.style.top  = ex.y + 'px';
       });
@@ -876,27 +710,22 @@
       canvas.classList.add('panning');
 
       function onMove(e2) {
-        var mx  = e2.touches ? e2.touches[0].clientX : e2.clientX;
-        var my  = e2.touches ? e2.touches[0].clientY : e2.clientY;
-        var dx  = mx - panLastX;
-        var dy  = my - panLastY;
-        var now = performance.now();
-        var dt  = Math.max(1, now - panLastT);
+        var mx = e2.touches ? e2.touches[0].clientX : e2.clientX;
+        var my = e2.touches ? e2.touches[0].clientY : e2.clientY;
+        var dx = mx - panLastX, dy = my - panLastY;
+        var now = performance.now(), dt = Math.max(1, now - panLastT);
         if (Math.abs(dx) > 3 || Math.abs(dy) > 3) panMoved = true;
-
-        var rp = getRP();
-        var W  = rp.offsetWidth;
-        var H  = rp.offsetHeight;
 
         if (mode === 'scroll') {
           for (var r = 0; r < ROWS; r++) rowOffset[r] += dx;
           panOffsetY += dy;
         } else if (mode === 'exploded') {
+          var W = getRP().offsetWidth, H = getRP().offsetHeight;
           cards.forEach(function(s) {
             if (s.el.classList.contains('fhidden')) return;
             var ex = exState[s.id];
-            ex.x = torusX(ex.x + dx, W);
-            ex.y = torusY(ex.y + dy, H);
+            ex.x = mod(ex.x + dx + CW, W + CW) - CW;
+            ex.y = mod(ex.y + dy + CH, H + CH) - CH;
             s.el.style.left = ex.x + 'px';
             s.el.style.top  = ex.y + 'px';
           });
@@ -908,14 +737,11 @@
       }
 
       function onUp() {
-        panning = false;
-        canvas.classList.remove('panning');
+        panning = false; canvas.classList.remove('panning');
         var n = panHistX.length;
         if (n > 0) {
           var sumX = 0, sumY = 0, wSum = 0;
-          for (var i = 0; i < n; i++) {
-            var w = i + 1; sumX += panHistX[i] * w; sumY += panHistY[i] * w; wSum += w;
-          }
+          for (var i = 0; i < n; i++) { var w = i + 1; sumX += panHistX[i]*w; sumY += panHistY[i]*w; wSum += w; }
           panVelX = (sumX / wSum) * 16.67 * VEL_SCALE;
           panVelY = (sumY / wSum) * 16.67 * VEL_SCALE;
         }
@@ -938,32 +764,26 @@
   /* ── Shuffle toggle ── */
   window.toggleShuffle = function() {
     var btn = document.getElementById('shuffle-btn');
-    var rp  = getRP();
-
     if (mode === 'scroll' || mode === 'returning') {
       mode = 'exploded';
-      btn.textContent = 'Grid';
-      btn.classList.add('exploded');
+      btn.textContent = 'Grid'; btn.classList.add('exploded');
       panVelX = 0; panVelY = 0;
       cards.forEach(function(s) {
         if (s.el.classList.contains('fhidden')) return;
-        var ex    = exState[s.id];
+        var ex = exState[s.id];
         var angle = Math.random() * Math.PI * 2;
         var speed = EXPLODE_SPEED * (0.6 + Math.random() * 0.8);
-        ex.vx         = Math.cos(angle) * speed;
-        ex.vy         = Math.sin(angle) * speed;
+        ex.vx = Math.cos(angle) * speed;
+        ex.vy = Math.sin(angle) * speed;
         ex.driftAngle = angle;
         ex.x = parseFloat(s.el.style.left) || ex.x;
         ex.y = parseFloat(s.el.style.top)  || ex.y;
       });
     } else {
-      mode        = 'returning';
-      returnStart = performance.now();
-      btn.textContent = 'Shuffle';
-      btn.classList.remove('exploded');
+      mode = 'returning'; returnStart = performance.now();
+      btn.textContent = 'Shuffle'; btn.classList.remove('exploded');
       panVelX = 0; panVelY = 0;
-      rowOffset  = [0, 0, 0];
-      panOffsetY = 0;
+      rowOffset = [0, 0, 0]; panOffsetY = 0;
       cards.forEach(function(s) {
         if (s.el.classList.contains('fhidden')) return;
         var ex = exState[s.id];
@@ -974,19 +794,21 @@
     }
   };
 
-  /* ── Resize handler ── */
+  /* ── Resize: recalc dimensions, reset scroll offsets ── */
   var resizeTimer = null;
   window.addEventListener('resize', function() {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(function() {
       calcLayout();
-      var visible = projects.filter(function(p) {
-        return !p.hidden && (activeFilter === 'all' || p.tags.indexOf(activeFilter) !== -1);
+      /* Recompute card widths/heights in DOM */
+      var thumbH = THUMB_H;
+      cards.forEach(function(s) {
+        s.el.style.width = CW + 'px';
+        var thumb = s.el.querySelector('.proj-thumb');
+        if (thumb) { thumb.style.width = CW + 'px'; thumb.style.height = thumbH + 'px'; }
       });
-      perRow = Math.ceil(visible.length / ROWS);
       if (mode === 'scroll') {
-        rowOffset  = [0, 0, 0];
-        panOffsetY = 0;
+        rowOffset = [0, 0, 0]; panOffsetY = 0;
       }
     }, 150);
   });
@@ -999,9 +821,7 @@
   var svgEM = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>';
 
   function socialRowHTML(aboutOnclick, aboutLabel) {
-    return '<div class="identity">'
-      + '<div class="bio">' + BIO_SHORT + '</div>'
-      + '<div class="social-row">'
+    return '<div class="identity"><div class="bio">' + BIO_SHORT + '</div><div class="social-row">'
       + '<a href="https://www.instagram.com/matikalter" target="_blank" class="social-icon">' + svgIG + '</a>'
       + '<a href="https://www.linkedin.com/in/matikalter/" target="_blank" class="social-icon">' + svgLI + '</a>'
       + '<a href="mailto:mkalterr@gmail.com" class="social-icon">' + svgEM + '</a>'
@@ -1062,9 +882,7 @@
 
   window.openProject = function(id) {
     var p = null;
-    for (var i = 0; i < projects.length; i++) {
-      if (projects[i].id === id) { p = projects[i]; break; }
-    }
+    for (var i = 0; i < projects.length; i++) { if (projects[i].id === id) { p = projects[i]; break; } }
     if (!p) return;
     hideHome();
 
@@ -1075,8 +893,8 @@
       + '<div class="lp-proj-year">' + p.year + '</div>'
       + '<div class="lp-proj-tags">'
       + p.tags.map(function(t) {
-          var match = filterDefs.filter(function(f) { return f.key === t; });
-          return '<span class="lp-proj-tag">' + (match.length ? match[0].label : t) + '</span>';
+          var m = filterDefs.filter(function(f) { return f.key === t; });
+          return '<span class="lp-proj-tag">' + (m.length ? m[0].label : t) + '</span>';
         }).join('')
       + '</div>'
       + '<div class="lp-proj-desc">' + (p.desc || 'Project description coming soon.') + '</div>'
@@ -1095,8 +913,8 @@
     }
 
     var grid = document.getElementById('proj-media-grid');
-    var extraImages = (p.images && p.images.length) ? (p.video ? p.images : p.images.slice(1)) : [];
-    grid.innerHTML = extraImages.map(function(src) {
+    var extras = (p.images && p.images.length) ? (p.video ? p.images : p.images.slice(1)) : [];
+    grid.innerHTML = extras.map(function(src) {
       return '<div class="proj-media-item"><img src="assets/' + p.id + '/' + src + '" alt=""></div>';
     }).join('') || '<div class="proj-media-item"></div><div class="proj-media-item"></div>';
 
@@ -1105,8 +923,8 @@
     document.getElementById('project-view').scrollTop = 0;
   };
 
-  /* ── INIT ── */
-  document.getElementById('bio-text').textContent      = BIO_SHORT;
+  /* INIT */
+  document.getElementById('bio-text').textContent       = BIO_SHORT;
   document.getElementById('about-bio-text').textContent = BIO_LONG;
   setLeftDefault();
   initCards();
