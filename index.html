@@ -99,11 +99,19 @@
   .lp-proj-tag { font-size: var(--tags-size); font-weight: var(--tags-weight); line-height: var(--tags-leading); letter-spacing: var(--tags-tracking); padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border); color: var(--text-muted); }
   .lp-proj-desc { font-size: var(--body-size); font-weight: var(--body-weight); line-height: var(--body-leading); letter-spacing: var(--body-tracking); color: var(--text-muted); }
 
-  /* RIGHT PANEL */
-  .right { position: fixed; left: var(--left-w); top: 0; right: 0; bottom: 0; overflow: hidden; }
+  /* RIGHT PANEL — clips content at its edges */
+  .right {
+    position: fixed; left: var(--left-w); top: 0; right: 0; bottom: 0;
+    overflow: hidden;
+  }
 
-  /* CANVAS */
-  #float-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: grab; user-select: none; }
+  /* CANVAS — overflow visible so cards crossing edges aren't clipped internally.
+     Clipping is done by .right above. */
+  #float-canvas {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    overflow: visible;
+    cursor: grab; user-select: none;
+  }
   #float-canvas.panning { cursor: grabbing; }
 
   #shuffle-btn {
@@ -244,8 +252,9 @@
 
   /* ── PHYSICS SETTINGS ──────────────────────────────────────────────
      ROWS             Number of visible rows filling the screen
-     GAP              px — all spacing: top margin, bottom margin, between rows, between columns
-     CARD_ASPECT      thumbnail width/height ratio
+     GAP              px — all spacing: between rows, columns, and margins
+     CARD_ASPECT      thumbnail width/height ratio (width/height)
+     LABEL_H          px height reserved below thumb for the project name
      ROW_SCROLL_SPEED px/frame horizontal auto-scroll (alternating per row)
      FRICTION         velocity decay per frame
      VEL_SCALE        pan throw strength multiplier
@@ -254,9 +263,10 @@
      RETURN_DUR       ms for return-to-grid animation
   ──────────────────────────────────────────────────────────────────── */
   var ROWS             = 3;
-  var GAP              = 40;
+  var GAP              = 40;    /* change this to adjust ALL spacing uniformly */
   var CARD_ASPECT      = 16 / 10;
-  var ROW_SCROLL_SPEED = 0.2;
+  var LABEL_H          = 22;    /* px height of hover-name label below thumb */
+  var ROW_SCROLL_SPEED = 0.15;  /* 0.75x of previous 0.2 */
   var FRICTION         = 0.965;
   var VEL_SCALE        = 0.4;
   var EXPLODE_SPEED    = 28;
@@ -265,16 +275,6 @@
 
   /* =====================================================================
      PROJECT LIST
-     id        — must match folder name in assets/ exactly
-     title     — display name
-     year      — year string
-     tags      — filter keys
-     desc      — short description for left panel
-     thumb     — thumbnail filename inside assets/[id]/ ('' = none)
-     video     — embed URL for hero ('' = none)
-     images    — array of additional image filenames inside assets/[id]/
-     hidden    — true = hidden | false = visible
-     ORDER = gallery display order
      ===================================================================== */
   var projects = [
 
@@ -464,28 +464,27 @@
 
   /* =====================================================================
      PHYSICS ENGINE
-     =====================================================================
 
-     TORUS APPROACH — offset-based, period-aware
+     LAYOUT MATH:
      ─────────────────────────────────────────────────────────────────────
-     Each card has a fixed grid position: (baseX(col), baseY(row)).
-     We never move cards individually in scroll mode. Instead we maintain:
-       rowOffset[r]  — horizontal offset applied to ALL cards in row r
-       panOffsetY    — vertical offset applied to ALL cards
+     We want equal GAP everywhere: above row 0, between rows, below row 2.
+     So: GAP + ROWS*CH + (ROWS-1)*GAP + GAP = H
+         GAP*(ROWS+1) + ROWS*CH = H
+         CH = (H - GAP*(ROWS+1)) / ROWS
+         THUMB_H = CH - LABEL_H
+         CW = THUMB_H * CARD_ASPECT
 
-     The torus periods are:
-       rowPeriod = perRow * (CW + GAP)   — total width of one full row tile
-       colPeriod = ROWS  * (CH + GAP)    — total height of one full column tile
+     TORUS:
+     Each row uses the same rowPeriod = perRow*(CW+GAP).
+     All rows use the same colPeriod = ROWS*(CH+GAP).
+     rowOffset[r] accumulates horizontally; panOffsetY accumulates vertically.
+     Both are used as offsets into the torus — we never need to store
+     per-card positions in scroll mode, only the offsets.
 
-     To position card (col, row):
-       x = (baseX(col) + rowOffset[row]) mod rowPeriod   → mapped to visible range
-       y = (baseY(row) + panOffsetY)     mod colPeriod   → mapped to visible range
-
-     The modulo keeps offsets within [0, period) then we shift so cards
-     are centred in the viewport.
-
-     Because baseX/baseY never change, resizing just recalculates CW/CH/GAP
-     and the card dimensions — the offsets naturally produce correct positions.
+     CLIPPING:
+     .right has overflow:hidden — cards that cross any edge of the right
+     panel are clipped there, not inside #float-canvas. This means a card
+     half-way out the top shows its bottom half correctly.
      ===================================================================== */
 
   var activeFilter = 'all';
@@ -494,11 +493,11 @@
   var mode         = 'scroll';
   var returnStart  = 0;
 
-  /* Layout */
+  /* Computed layout */
   var CW = 1, CH = 1, THUMB_H = 1, perRow = 1;
 
-  /* Scroll state */
-  var rowOffset  = [0, 0, 0];   /* one per row */
+  /* Scroll offsets */
+  var rowOffset  = [0, 0, 0];
   var panOffsetY = 0;
 
   /* Pan inertia */
@@ -507,52 +506,76 @@
   var panLastX = 0, panLastY = 0, panLastT = 0;
   var panHistX = [], panHistY = [], panHistT = [];
 
-  /* Explode state per card id: { vx, vy, x, y, driftAngle } */
+  /* Explode state per card id */
   var exState = {};
 
   function getRP() { return document.getElementById('right-panel'); }
 
-  /* ── Layout ── */
+  /* ── Layout ─────────────────────────────────────────────────────── */
   function calcLayout() {
     var H = getRP().offsetHeight;
-    /* GAP appears (ROWS+1) times vertically */
-    THUMB_H = (H - GAP * (ROWS + 1)) / ROWS;
-    CH      = THUMB_H + 22;   /* thumb + label */
+    CH      = (H - GAP * (ROWS + 1)) / ROWS;
+    THUMB_H = CH - LABEL_H;
     CW      = Math.round(THUMB_H * CARD_ASPECT);
   }
 
-  /* Fixed grid positions — never change after init */
+  /* Fixed base positions — only depend on col/row index and CW/CH/GAP */
   function baseX(col) { return GAP + col * (CW + GAP); }
   function baseY(row) { return GAP + row * (CH + GAP); }
 
-  /* ── Torus mod (always positive) ── */
+  /* Always-positive modulo */
   function mod(v, p) { return ((v % p) + p) % p; }
 
-  /* Map a scrolled x coordinate to screen space with seamless torus.
-     rowPeriod = total width of all cards in a row (including gaps).
-     We tile the row so that it fills the canvas width — cards appear
-     at positions: baseX(col) + rowOffset + k*rowPeriod for integer k.
-     We pick the k that places x in [-CW, W+CW) to show edge-crossing. */
-  function torusScreenX(rawX, rowPeriod) {
+  /*
+   * Map a raw scrolled coordinate to a screen position using torus tiling.
+   *
+   * The torus period is the full width/height of one tile (all cards + gaps).
+   * We want cards to appear in multiple copies so the row fills the screen
+   * and wraps seamlessly. We place copies at raw ± k*period for integer k,
+   * choosing the copy that lands in the range [-cardSize, screenSize+cardSize).
+   * This is equivalent to:
+   *   x = mod(raw, period)
+   *   then shift x so it's in view
+   *
+   * But we need MULTIPLE copies visible simultaneously when the period is
+   * smaller than the screen. So instead of a single modulo, we compute the
+   * first copy position and render all copies that overlap the viewport.
+   * We do this by: setting card x to the canonical position, then the tick
+   * loop renders the card there. Additional "ghost" copies are handled by
+   * rendering the same card shifted by ±period — but since we can't have
+   * multiple DOM positions, we use the modulo to always keep the card in the
+   * leftmost visible copy, and rely on the period being large enough that
+   * at most 2 copies are needed.
+   *
+   * For our layout: perRow=5, CW≈363, GAP=40 → period≈2015 > canvasW=1367.
+   * At most 2 copies overlap the viewport at any time. We position the card
+   * at mod(raw, period) and if that puts it off the right edge entirely, we
+   * subtract one period. This keeps the card in [-CW, canvasW).
+   */
+  function torusX(raw) {
     var W = getRP().offsetWidth;
-    var x = mod(rawX, rowPeriod);
-    /* shift so x is in range that covers the canvas */
-    if (x > W + CW) x -= rowPeriod;
+    var period = perRow * (CW + GAP);
+    var x = mod(raw, period);
+    /* shift into visible zone: if x is past the right edge, pull back */
+    if (x >= W + CW) x -= period;
     return x;
   }
 
-  function torusScreenY(rawY, colPeriod) {
+  function torusY(raw) {
     var H = getRP().offsetHeight;
-    var y = mod(rawY, colPeriod);
-    if (y > H + CH) y -= colPeriod;
+    var period = ROWS * (CH + GAP);
+    var y = mod(raw, period);
+    if (y >= H + CH) y -= period;
     return y;
   }
 
-  /* ── Build cards (once) ── */
+  /* ── Build cards ── */
   function initCards() {
     calcLayout();
     var canvas  = document.getElementById('float-canvas');
     var visible = projects.filter(function(p) { return !p.hidden; });
+
+    /* All rows use the same perRow — the maximum row count */
     perRow = Math.ceil(visible.length / ROWS);
 
     rowOffset  = [0, 0, 0];
@@ -616,13 +639,11 @@
 
   /* ── Tick ── */
   function tick() {
-    var now       = performance.now();
-    var rowPeriod = perRow * (CW + GAP);
-    var colPeriod = ROWS   * (CH + GAP);
+    var now = performance.now();
 
     if (mode === 'returning') {
       var t    = Math.min(1, (now - returnStart) / RETURN_DUR);
-      var ease = t * t * (3 - 2 * t);  /* smoothstep */
+      var ease = t * t * (3 - 2 * t);
       cards.forEach(function(s) {
         if (s.el.classList.contains('fhidden')) return;
         var ex = exState[s.id];
@@ -638,14 +659,11 @@
       }
 
     } else if (mode === 'scroll') {
-      /* Decay pan inertia */
       if (!panning) {
         panVelX *= FRICTION; panVelY *= FRICTION;
         if (Math.abs(panVelX) < 0.005) panVelX = 0;
         if (Math.abs(panVelY) < 0.005) panVelY = 0;
       }
-
-      /* Advance row offsets */
       for (var r = 0; r < ROWS; r++) {
         var dir = (r % 2 === 0) ? 1 : -1;
         rowOffset[r] += dir * ROW_SCROLL_SPEED;
@@ -653,18 +671,16 @@
       }
       if (!panning) panOffsetY += panVelY;
 
-      /* Position each card using torus-mapped offsets */
       cards.forEach(function(s) {
         if (s.el.classList.contains('fhidden')) return;
-        var rawX = baseX(s.colIdx) + rowOffset[s.rowIdx];
-        var rawY = baseY(s.rowIdx) + panOffsetY;
-        var x = torusScreenX(rawX, rowPeriod);
-        var y = torusScreenY(rawY, colPeriod);
+        var x = torusX(baseX(s.colIdx) + rowOffset[s.rowIdx]);
+        var y = torusY(baseY(s.rowIdx) + panOffsetY);
         s.el.style.left = x + 'px';
         s.el.style.top  = y + 'px';
       });
 
     } else if (mode === 'exploded') {
+      var W = getRP().offsetWidth, H = getRP().offsetHeight;
       cards.forEach(function(s) {
         if (s.el.classList.contains('fhidden')) return;
         var ex  = exState[s.id];
@@ -679,8 +695,6 @@
           ex.vx = Math.cos(ex.driftAngle) * MIN_DRIFT;
           ex.vy = Math.sin(ex.driftAngle) * MIN_DRIFT;
         }
-        /* Simple canvas-size torus in exploded mode */
-        var W = getRP().offsetWidth, H = getRP().offsetHeight;
         ex.x = mod(ex.x + ex.vx + CW, W + CW) - CW;
         ex.y = mod(ex.y + ex.vy + CH, H + CH) - CH;
         s.el.style.left = ex.x + 'px';
@@ -741,7 +755,7 @@
         var n = panHistX.length;
         if (n > 0) {
           var sumX = 0, sumY = 0, wSum = 0;
-          for (var i = 0; i < n; i++) { var w = i + 1; sumX += panHistX[i]*w; sumY += panHistY[i]*w; wSum += w; }
+          for (var i = 0; i < n; i++) { var w = i+1; sumX+=panHistX[i]*w; sumY+=panHistY[i]*w; wSum+=w; }
           panVelX = (sumX / wSum) * 16.67 * VEL_SCALE;
           panVelY = (sumY / wSum) * 16.67 * VEL_SCALE;
         }
@@ -794,18 +808,17 @@
     }
   };
 
-  /* ── Resize: recalc dimensions, reset scroll offsets ── */
+  /* ── Resize ── */
   var resizeTimer = null;
   window.addEventListener('resize', function() {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(function() {
       calcLayout();
-      /* Recompute card widths/heights in DOM */
-      var thumbH = THUMB_H;
+      /* Update all card DOM dimensions */
       cards.forEach(function(s) {
         s.el.style.width = CW + 'px';
         var thumb = s.el.querySelector('.proj-thumb');
-        if (thumb) { thumb.style.width = CW + 'px'; thumb.style.height = thumbH + 'px'; }
+        if (thumb) { thumb.style.width = CW + 'px'; thumb.style.height = THUMB_H + 'px'; }
       });
       if (mode === 'scroll') {
         rowOffset = [0, 0, 0]; panOffsetY = 0;
