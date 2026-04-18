@@ -10,99 +10,435 @@
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --left-w: 340px; --radius: 6px;
-    --border:#e0e0e0; --text:#111; --text-muted:#888; --text-faint:#bbb;
-    --bg:#fff; --bg-secondary:#f7f7f6; --bg-tertiary:#f0efed;
-    --font:'Geist',-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;
-    --title-size:18px; --title-weight:500; --title-leading:1.2; --title-tracking:-0.02em;
-    --h1-size:20px;    --h1-weight:500;    --h1-leading:1.2;    --h1-tracking:-0.01em;
-    --h2-size:14px;    --h2-weight:400;    --h2-leading:1.5;    --h2-tracking:0em;
-    --large-body-size:12px; --large-body-weight:400; --large-body-leading:1.6; --large-body-tracking:0em;
-    --body-size:12px;  --body-weight:400;  --body-leading:1.6;  --body-tracking:0em;
-    --tags-size:11px;  --tags-weight:400;  --tags-leading:1.4;  --tags-tracking:0em;
-    --labels-size:10px;--labels-weight:400;--labels-leading:1.4;--labels-tracking:0.1em;
+    /* ── LAYOUT ── */
+    --left-w: 340px;
+    --radius: 6px;
+
+    /* ── COLORS ── */
+    --border:       #e0e0e0;
+    --text:         #111;
+    --text-muted:   #888;
+    --text-faint:   #bbb;
+    --bg:           #fff;
+    --bg-secondary: #f7f7f6;
+    --bg-tertiary:  #f0efed;
+
+    /* ── FONT FAMILY ── */
+    --font: 'Geist', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+
+    /* ================================================================
+       TYPOGRAPHY SYSTEM
+       ----------------------------------------------------------------
+       7 named styles. Each has 4 parameters:
+         size     — font-size
+         weight   — font-weight (300 light / 400 regular / 500 medium)
+         leading  — line-height
+         tracking — letter-spacing
+
+       To apply a style to any element, use all 4 variables together:
+         font-size:      var(--title-size);
+         font-weight:    var(--title-weight);
+         line-height:    var(--title-leading);
+         letter-spacing: var(--title-tracking);
+
+       To override a single parameter, add it after the variable line:
+         font-size:      var(--body-size);
+         font-weight:    var(--body-weight);
+         line-height:    var(--body-leading);
+         letter-spacing: var(--body-tracking);
+         font-size: 15px;   ← this overrides just size, rest stays
+       ================================================================ */
+
+    /* Title (xxl) — logo / site name */
+    --title-size:     18px;
+    --title-weight:   500;
+    --title-leading:  1.2;
+    --title-tracking: -0.02em;
+
+    /* Heading 1 (xl) — project title in left panel */
+    --h1-size:     20px;
+    --h1-weight:   500;
+    --h1-leading:  1.2;
+    --h1-tracking: -0.01em;
+
+    /* Heading 2 (lg) — about bio paragraph */
+    --h2-size:     14px;
+    --h2-weight:   400;
+    --h2-leading:  1.5;
+    --h2-tracking: 0em;
+
+    /* Large Body (md) — about items, project desc */
+    --large-body-size:     12px;
+    --large-body-weight:   400;
+    --large-body-leading:  1.6;
+    --large-body-tracking: 0em;
+
+    /* Body (base) — bio, hover name, year, general UI text */
+    --body-size:     12px;
+    --body-weight:   400;
+    --body-leading:  1.6;
+    --body-tracking: 0em;
+
+    /* Tags (sm) — filter tags, project tags, back link, grid count */
+    --tags-size:     11px;
+    --tags-weight:   400;
+    --tags-leading:  1.4;
+    --tags-tracking: 0em;
+
+    /* Labels (xs) — section headings like FILTER, EDUCATION */
+    --labels-size:     10px;
+    --labels-weight:   400;
+    --labels-leading:  1.4;
+    --labels-tracking: 0.1em;
   }
-  html,body{font-family:var(--font);background:var(--bg);color:var(--text);overflow:hidden;height:100%;}
-  .site{height:100vh;}
-  .left{position:fixed;top:0;left:0;width:var(--left-w);height:100vh;border-right:1px solid var(--border);padding:32px 28px;display:flex;flex-direction:column;background:var(--bg);overflow-y:auto;overflow-x:hidden;scrollbar-width:none;z-index:100;}
-  .left::-webkit-scrollbar{display:none;}
-  .logo-zone{font-size:var(--title-size);font-weight:var(--title-weight);line-height:var(--title-leading);letter-spacing:var(--title-tracking);margin-bottom:20px;cursor:pointer;color:var(--text);user-select:none;}
-  .logo-zone:hover{opacity:0.7;}
-  .identity{margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border);}
-  .bio{font-size:var(--body-size);font-weight:var(--body-weight);line-height:var(--body-leading);letter-spacing:var(--body-tracking);color:var(--text-muted);margin-bottom:12px;}
-  .social-row{display:flex;align-items:center;gap:14px;}
-  .social-icon{width:16px;height:16px;color:var(--text-faint);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:color 0.15s;text-decoration:none;flex-shrink:0;}
-  .social-icon:hover{color:var(--text);}
-  .about-link{font-size:var(--body-size);font-weight:var(--body-weight);line-height:var(--body-leading);letter-spacing:var(--body-tracking);color:var(--text-faint);cursor:pointer;margin-left:auto;display:flex;align-items:center;gap:3px;transition:color 0.15s;white-space:nowrap;}
-  .about-link:hover{color:var(--text);}
-  .filter-label{font-size:var(--labels-size);font-weight:var(--labels-weight);line-height:var(--labels-leading);letter-spacing:var(--labels-tracking);color:var(--text-faint);text-transform:uppercase;margin:0 0 8px;}
-  .tags{display:flex;flex-wrap:wrap;gap:5px;}
-  .tag{font-size:var(--tags-size);font-weight:var(--tags-weight);line-height:var(--tags-leading);letter-spacing:var(--tags-tracking);padding:3px 9px;border-radius:20px;border:1px solid var(--border);color:var(--text-muted);cursor:pointer;transition:all 0.15s;background:transparent;user-select:none;}
-  .tag:hover{border-color:#999;color:var(--text);}
-  .tag.active{background:var(--text);color:#fff;border-color:var(--text);}
-  .lp-proj-title{font-size:var(--h1-size);font-weight:var(--h1-weight);line-height:var(--h1-leading);letter-spacing:var(--h1-tracking);margin-bottom:4px;}
-  .lp-proj-year{font-size:var(--body-size);font-weight:var(--body-weight);line-height:var(--body-leading);letter-spacing:var(--body-tracking);color:var(--text-faint);margin-bottom:16px;}
-  .lp-proj-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:16px;}
-  .lp-proj-tag{font-size:var(--tags-size);font-weight:var(--tags-weight);line-height:var(--tags-leading);letter-spacing:var(--tags-tracking);padding:3px 9px;border-radius:20px;border:1px solid var(--border);color:var(--text-muted);}
-  .lp-proj-desc{font-size:var(--body-size);font-weight:var(--body-weight);line-height:var(--body-leading);letter-spacing:var(--body-tracking);color:var(--text-muted);}
 
-  /* RIGHT PANEL clips at its edges */
-  .right{position:fixed;left:var(--left-w);top:0;right:0;bottom:0;overflow:hidden;}
+  html, body { font-family: var(--font); background: var(--bg); color: var(--text); }
+  .site { min-height: 100vh; }
 
-  /* CANVAS is overflow:visible — clipping done by .right above, not here.
-     This is what allows cards to show their partial edge at ALL 4 boundaries. */
-  #float-canvas{position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible;cursor:grab;user-select:none;}
-  #float-canvas.panning{cursor:grabbing;}
+  /* ── LEFT PANEL ── */
+  .left {
+    position: fixed; top: 0; left: 0;
+    width: var(--left-w); height: 100vh;
+    border-right: 1px solid var(--border);
+    padding: 32px 28px;
+    display: flex; flex-direction: column;
+    background: var(--bg);
+    overflow-y: auto; overflow-x: hidden;
+    scrollbar-width: none;
+  }
+  .left::-webkit-scrollbar { display: none; }
 
-  #shuffle-btn{position:absolute;top:20px;right:20px;z-index:50;font-family:var(--font);font-size:var(--tags-size);font-weight:var(--tags-weight);color:var(--text-muted);background:var(--bg);border:1px solid var(--border);padding:6px 14px;cursor:pointer;transition:all 0.15s;user-select:none;pointer-events:all;}
-  #shuffle-btn:hover{color:var(--text);border-color:#999;}
-  #shuffle-btn.exploded{background:var(--text);color:#fff;border-color:var(--text);}
-  #grid-count{position:absolute;top:24px;left:20px;z-index:50;font-size:var(--tags-size);font-weight:var(--tags-weight);color:var(--text-faint);pointer-events:none;}
+  /* Title style */
+  .logo-zone {
+    font-size:      var(--title-size);
+    font-weight:    var(--title-weight);
+    line-height:    var(--title-leading);
+    letter-spacing: var(--title-tracking);
+    margin-bottom: 20px; cursor: pointer; color: var(--text); user-select: none;
+  }
+  .logo-zone:hover { opacity: 0.7; }
 
-  .proj-card{position:absolute;pointer-events:none;user-select:none;}
-  .proj-card.fhidden{visibility:hidden;}
-  .proj-thumb{background:var(--bg-secondary);overflow:hidden;display:block;}
-  .proj-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
-  .card-hit{position:absolute;top:0;left:0;width:100%;height:100%;z-index:10;pointer-events:all;cursor:pointer;}
-  .proj-hover-name{font-size:var(--body-size);font-weight:var(--body-weight);line-height:var(--body-leading);letter-spacing:var(--body-tracking);text-align:center;color:var(--text-muted);padding:6px 0 0;opacity:0;transition:opacity 0.15s;pointer-events:none;}
-  .proj-card:hover .proj-hover-name{opacity:1;}
+  .identity { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
 
-  #project-view{position:absolute;top:0;left:0;right:0;bottom:0;display:none;overflow-y:auto;background:var(--bg);z-index:60;}
-  #project-view.visible{display:block;}
-  .back-link{font-size:var(--tags-size);font-weight:var(--tags-weight);line-height:var(--tags-leading);letter-spacing:var(--tags-tracking);color:var(--text-faint);cursor:pointer;padding:20px 24px 0;display:inline-flex;align-items:center;gap:5px;transition:color 0.15s;}
-  .back-link:hover{color:var(--text);}
-  .proj-content{padding:16px 24px 48px;}
-  .proj-hero{width:100%;aspect-ratio:16/8;background:var(--bg-tertiary);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;display:flex;align-items:center;justify-content:center;position:relative;}
-  .proj-hero img{width:100%;height:100%;object-fit:cover;}
-  .proj-hero iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0;}
-  .proj-media-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;}
-  .proj-media-item{aspect-ratio:16/10;background:var(--bg-secondary);border-radius:var(--radius);overflow:hidden;}
-  .proj-media-item img{width:100%;height:100%;object-fit:cover;}
+  /* Body style */
+  .bio {
+    font-size:      var(--body-size);
+    font-weight:    var(--body-weight);
+    line-height:    var(--body-leading);
+    letter-spacing: var(--body-tracking);
+    color: var(--text-muted); margin-bottom: 12px;
+  }
 
-  #about-view{position:absolute;top:0;left:0;right:0;bottom:0;display:none;background:var(--bg);z-index:60;}
-  #about-view.visible{display:grid;grid-template-columns:40% 60%;}
-  .about-text-col{padding:40px 40px 40px 48px;overflow-y:auto;}
-  .about-bio{font-size:var(--h2-size);font-weight:var(--h2-weight);line-height:var(--h2-leading);letter-spacing:var(--h2-tracking);color:var(--text-muted);margin-bottom:32px;}
-  .about-section{margin-bottom:24px;}
-  .about-section-title{font-size:var(--labels-size);font-weight:var(--labels-weight);line-height:var(--labels-leading);letter-spacing:var(--labels-tracking);color:var(--text-faint);text-transform:uppercase;margin-bottom:8px;}
-  .about-item{font-size:var(--large-body-size);font-weight:var(--large-body-weight);line-height:var(--large-body-leading);letter-spacing:var(--large-body-tracking);color:var(--text-muted);padding:2px 0;}
-  .about-item span{color:var(--text-faint);}
-  .about-reel-col{position:relative;min-height:100%;}
-  .about-reel-wrap{position:absolute;bottom:24px;right:24px;width:calc(100% - 48px);aspect-ratio:16/9;overflow:hidden;background:#000;}
-  .about-reel-wrap iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0;}
+  .social-row { display: flex; align-items: center; gap: 14px; }
+  .social-icon {
+    width: 16px; height: 16px; color: var(--text-faint);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: color 0.15s; text-decoration: none; flex-shrink: 0;
+  }
+  .social-icon:hover { color: var(--text); }
+
+  /* Body style */
+  .about-link {
+    font-size:      var(--body-size);
+    font-weight:    var(--body-weight);
+    line-height:    var(--body-leading);
+    letter-spacing: var(--body-tracking);
+    color: var(--text-faint); cursor: pointer;
+    margin-left: auto; display: flex; align-items: center; gap: 3px;
+    transition: color 0.15s; white-space: nowrap;
+  }
+  .about-link:hover { color: var(--text); }
+
+  /* Labels style */
+  .filter-label {
+    font-size:      var(--labels-size);
+    font-weight:    var(--labels-weight);
+    line-height:    var(--labels-leading);
+    letter-spacing: var(--labels-tracking);
+    color: var(--text-faint); text-transform: uppercase; margin: 0 0 8px;
+  }
+
+  .tags { display: flex; flex-wrap: wrap; gap: 5px; }
+
+  /* Tags style */
+  .tag {
+    font-size:      var(--tags-size);
+    font-weight:    var(--tags-weight);
+    line-height:    var(--tags-leading);
+    letter-spacing: var(--tags-tracking);
+    padding: 3px 9px; border-radius: 20px;
+    border: 1px solid var(--border); color: var(--text-muted);
+    cursor: pointer; transition: all 0.15s; background: transparent; user-select: none;
+  }
+  .tag:hover { border-color: #999; color: var(--text); }
+  .tag.active { background: var(--text); color: #fff; border-color: var(--text); }
+
+  /* ── LEFT PANEL — PROJECT VIEW ── */
+
+  /* Heading 1 style */
+  .lp-proj-title {
+    font-size:      var(--h1-size);
+    font-weight:    var(--h1-weight);
+    line-height:    var(--h1-leading);
+    letter-spacing: var(--h1-tracking);
+    margin-bottom: 4px;
+  }
+
+  /* Body style */
+  .lp-proj-year {
+    font-size:      var(--body-size);
+    font-weight:    var(--body-weight);
+    line-height:    var(--body-leading);
+    letter-spacing: var(--body-tracking);
+    color: var(--text-faint); margin-bottom: 16px;
+  }
+
+  .lp-proj-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 16px; }
+
+  /* Tags style */
+  .lp-proj-tag {
+    font-size:      var(--tags-size);
+    font-weight:    var(--tags-weight);
+    line-height:    var(--tags-leading);
+    letter-spacing: var(--tags-tracking);
+    padding: 3px 9px; border-radius: 20px;
+    border: 1px solid var(--border); color: var(--text-muted);
+  }
+
+  /* Body style */
+  .lp-proj-desc {
+    font-size:      var(--body-size);
+    font-weight:    var(--body-weight);
+    line-height:    var(--body-leading);
+    letter-spacing: var(--body-tracking);
+    color: var(--text-muted);
+  }
+
+  /* ── RIGHT PANEL ── */
+  .right { margin-left: var(--left-w); min-height: 100vh; }
+
+  /* ── HOME VIEW ── */
+  .grid-area { padding: 24px; }
+
+  /* Tags style */
+  .grid-count {
+    font-size:      var(--tags-size);
+    font-weight:    var(--tags-weight);
+    line-height:    var(--tags-leading);
+    letter-spacing: var(--tags-tracking);
+    color: var(--text-faint); margin-bottom: 18px;
+  }
+
+  .project-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+  }
+  .proj-card {
+    border: none; border-radius: 0;
+    overflow: visible; cursor: pointer; position: relative;
+  }
+  .proj-card.hidden { display: none; }
+  .proj-thumb {
+    aspect-ratio: 16/10;
+    background: var(--bg-secondary);
+    overflow: hidden; border-radius: 0; display: block;
+  }
+  .proj-thumb img {
+    width: 100%; height: 100%;
+    object-fit: cover; display: block;
+    transition: opacity 0.15s;
+  }
+  .proj-card:hover .proj-thumb img { opacity: 0.85; }
+
+  /* Body style */
+  .proj-hover-name {
+    font-size:      var(--body-size);
+    font-weight:    var(--body-weight);
+    line-height:    var(--body-leading);
+    letter-spacing: var(--body-tracking);
+    text-align: center; color: var(--text-muted);
+    padding: 6px 0 0; opacity: 0;
+    transition: opacity 0.15s; pointer-events: none;
+  }
+  .proj-card:hover .proj-hover-name { opacity: 1; }
+
+  /* ── PROJECT PAGE ── */
+  .proj-page { display: none; }
+  .proj-page.visible { display: block; }
+
+  /* Tags style */
+  .back-link {
+    font-size:      var(--tags-size);
+    font-weight:    var(--tags-weight);
+    line-height:    var(--tags-leading);
+    letter-spacing: var(--tags-tracking);
+    color: var(--text-faint); cursor: pointer;
+    padding: 20px 24px 0; display: inline-flex; align-items: center; gap: 5px;
+    transition: color 0.15s;
+  }
+  .back-link:hover { color: var(--text); }
+
+  .proj-content { padding: 16px 24px 48px; }
+  .proj-hero {
+    width: 100%; aspect-ratio: 16/8;
+    background: var(--bg-tertiary); border-radius: var(--radius);
+    overflow: hidden; margin-bottom: 16px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .proj-hero img { width: 100%; height: 100%; object-fit: cover; }
+  .proj-hero iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
+  .proj-media-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .proj-media-item {
+    aspect-ratio: 16/10; background: var(--bg-secondary);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .proj-media-item img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* ── ABOUT VIEW ── */
+  .about-view { display: none; min-height: 100vh; }
+  .about-view.visible {
+    display: grid;
+    grid-template-columns: 40% 60%;
+    min-height: 100vh;
+  }
+  .about-text-col { padding: 40px 40px 40px 48px; }
+
+  /* Heading 2 style */
+  .about-bio {
+    font-size:      var(--h2-size);
+    font-weight:    var(--h2-weight);
+    line-height:    var(--h2-leading);
+    letter-spacing: var(--h2-tracking);
+    color: var(--text-muted); margin-bottom: 32px;
+  }
+
+  .about-section { margin-bottom: 24px; }
+
+  /* Labels style */
+  .about-section-title {
+    font-size:      var(--labels-size);
+    font-weight:    var(--labels-weight);
+    line-height:    var(--labels-leading);
+    letter-spacing: var(--labels-tracking);
+    color: var(--text-faint); text-transform: uppercase; margin-bottom: 8px;
+  }
+
+  /* Large Body style */
+  .about-item {
+    font-size:      var(--large-body-size);
+    font-weight:    var(--large-body-weight);
+    line-height:    var(--large-body-leading);
+    letter-spacing: var(--large-body-tracking);
+    color: var(--text-muted); padding: 2px 0;
+  }
+  .about-item span { color: var(--text-faint); }
+
+  .about-reel-col { position: relative; min-height: 100vh; }
+  .about-reel-wrap {
+    position: absolute;
+    bottom: 24px; right: 24px;
+    width: calc(100% - 48px);
+    aspect-ratio: 16/9;
+    overflow: hidden;
+    background: #000;
+  }
+  .about-reel-wrap iframe {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    border: 0;
+  }
+
+  /* ── GALLERY ── */
+  .gallery-viewport {
+    position: relative;
+    width: 100%; height: 100vh;
+    overflow: hidden;
+    cursor: grab;
+    user-select: none; -webkit-user-select: none;
+  }
+  .gallery-viewport.is-dragging { cursor: grabbing; }
+  .gallery-outer {
+    position: absolute; top: 0; left: 0;
+    width: 100%;
+    will-change: transform;
+  }
+  .g-track {
+    position: absolute; top: 0; left: 0;
+    display: flex;
+    will-change: transform;
+  }
+  .g-item {
+    flex-shrink: 0;
+    display: flex; flex-direction: column;
+    cursor: pointer;
+    position: relative;
+  }
+  .g-cell {
+    overflow: hidden;
+    background: var(--bg-secondary);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .g-cell img {
+    width: 100%; height: 100%;
+    object-fit: contain;
+    display: block;
+    pointer-events: none;
+  }
+  .g-label {
+    font-size:      var(--body-size);
+    font-weight:    var(--body-weight);
+    line-height:    var(--body-leading);
+    letter-spacing: var(--body-tracking);
+    color: var(--text-muted);
+    text-align: center;
+    padding: 5px 0 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+    pointer-events: none;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .g-item:hover .g-label { opacity: 1; }
+
+  #grid-count {
+    position: absolute;
+    bottom: 16px; left: 50%;
+    transform: translateX(-50%);
+    font-size:      var(--tags-size);
+    font-weight:    var(--tags-weight);
+    line-height:    var(--tags-leading);
+    letter-spacing: var(--tags-tracking);
+    color: var(--text-faint);
+    pointer-events: none;
+    z-index: 10;
+    white-space: nowrap;
+  }
 </style>
 </head>
 <body>
 <div class="site">
+
+  <!-- ── LEFT PANEL ── -->
   <div class="left" id="left-panel">
     <div class="logo-zone" onclick="window.goHome()">Mati Kalter</div>
     <div class="identity">
       <div class="bio" id="bio-text"></div>
       <div class="social-row">
-        <a href="https://www.instagram.com/matikalter" target="_blank" class="social-icon" title="Instagram"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></a>
-        <a href="https://www.linkedin.com/in/matikalter/" target="_blank" class="social-icon" title="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><line x1="8" y1="11" x2="8" y2="16"/><line x1="8" y1="8" x2="8" y2="8.5" stroke-width="2"/><path d="M12 11v5M12 11a3 3 0 0 1 6 0v5"/></svg></a>
-        <a href="mailto:mkalterr@gmail.com" class="social-icon" title="Email"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg></a>
-        <span class="about-link" onclick="window.openAbout()"><span style="font-size:15px;font-weight:300;line-height:1">+</span>&nbsp;About</span>
+        <a href="https://www.instagram.com/matikalter" target="_blank" class="social-icon" title="Instagram">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>
+        </a>
+        <a href="https://www.linkedin.com/in/matikalter/" target="_blank" class="social-icon" title="LinkedIn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><line x1="8" y1="11" x2="8" y2="16"/><line x1="8" y1="8" x2="8" y2="8.5" stroke-width="2"/><path d="M12 11v5M12 11a3 3 0 0 1 6 0v5"/></svg>
+        </a>
+        <a href="mailto:mkalterr@gmail.com" class="social-icon" title="Email">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>
+        </a>
+        <span class="about-link" onclick="window.openAbout()">
+          <span style="font-size:15px;font-weight:300;line-height:1">+</span>&nbsp;About
+        </span>
       </div>
     </div>
     <div class="filter-label">Filter</div>
@@ -121,25 +457,31 @@
     </div>
   </div>
 
-  <div class="right" id="right-panel">
-    <div id="float-canvas">
-      <div id="grid-count"></div>
-      <button id="shuffle-btn" onclick="window.toggleShuffle()">Shuffle</button>
+  <!-- ── RIGHT PANEL ── -->
+  <div class="right">
+
+    <div id="home-view">
+      <div class="gallery-viewport" id="gallery-viewport">
+        <div class="gallery-outer" id="gallery-outer"></div>
+        <span id="grid-count"></span>
+      </div>
     </div>
-    <div id="project-view">
+
+    <div id="project-view" class="proj-page">
       <div class="back-link" onclick="window.goHome()">&#8592; All work</div>
       <div class="proj-content">
         <div class="proj-hero" id="proj-hero"></div>
         <div class="proj-media-grid" id="proj-media-grid"></div>
       </div>
     </div>
-    <div id="about-view">
+
+    <div id="about-view" class="about-view">
       <div class="about-text-col">
         <div class="about-bio" id="about-bio-text"></div>
         <div class="about-section">
           <div class="about-section-title">Education</div>
-          <div class="about-item">MA Visual Game and Media Design <span>- Royal Danish Academy, 2023&ndash;2025</span></div>
-          <div class="about-item">B.Des Visual Communication <span>- Bezalel Academy of Arts and Design, 2016&ndash;2020</span></div>
+          <div class="about-item">MA Visual Game and Media Design <span>- Royal Danish Academy, 2023–2025</span></div>
+          <div class="about-item">B.Des Visual Communication <span>- Bezalel Academy of Arts and Design, 2016–2020</span></div>
         </div>
         <div class="about-section">
           <div class="about-section-title">Awards</div>
@@ -156,544 +498,684 @@
       </div>
       <div class="about-reel-col">
         <div class="about-reel-wrap">
-          <iframe src="https://player.vimeo.com/video/1136277012?autoplay=1&muted=1&loop=1&background=1" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+          <iframe src="https://player.vimeo.com/video/1136277012?autoplay=1&muted=1&loop=1&background=1"
+                  allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
         </div>
       </div>
     </div>
+
   </div>
 </div>
 
 <script>
-  var BIO_SHORT = 'Visual designer working in games - art direction, 3D/2D art & animation.';
-  var BIO_LONG  = 'My background spans indie game development as an art director and 2D/3D game artist, shaping characters, environments, and cohesive visual narratives, alongside animation and illustration.';
+  /* ===================================================================
+     ★ EDITABLE SETTINGS
+     =================================================================== */
 
-  /* ── SETTINGS ──────────────────────────────────────────────────────
-     ROWS             number of visible rows
-     GAP              px — equal spacing everywhere (top, bottom, between rows and columns)
-     CARD_ASPECT      thumbnail width/height ratio
-     LABEL_H          px height of name label below thumb
-     ROW_SCROLL_SPEED px/frame horizontal auto-scroll (alternating direction per row)
-     FRICTION         velocity decay per frame
-     VEL_SCALE        pan throw multiplier
-     EXPLODE_SPEED    max velocity on shuffle
-     MIN_DRIFT        post-explosion minimum speed (never stops)
-     RETURN_DUR       ms for grid-return animation
-  ─────────────────────────────────────────────────────────────────── */
-  var ROWS             = 3;
-  var GAP              = 40;
-  var CARD_ASPECT      = 16 / 10;
-  var LABEL_H          = 22;
-  var ROW_SCROLL_SPEED = 0.15;
-  var FRICTION         = 0.965;
-  var VEL_SCALE        = 0.4;
-  var EXPLODE_SPEED    = 28;
-  var MIN_DRIFT        = 0.06;
-  var RETURN_DUR       = 500;
+  /* Short bio — left panel under name */
+  var BIO_SHORT = 'Visual designer working in games - art direction, 3D/2D art & animation.';
+
+  /* Long bio — about page */
+  var BIO_LONG = 'My background spans indie game development as an art director and 2D/3D game artist, shaping characters, environments, and cohesive visual narratives, alongside animation and illustration.';
 
   /* =====================================================================
      PROJECT LIST
+     -----------------------------------------------------------------------
+     id        — must match folder name in assets/ exactly
+     title     — display name
+     year      — year string
+     tags      — array of filter keys:
+                   'games' | 'animation' | 'art-direction' | 'visual-design'
+                   'tech-art' | 'motion' | '3d' | '2d' | 'illustration' | 'solo-dev'
+     desc      — short description for project left panel (1–2 sentences)
+     thumb     — thumbnail filename inside assets/[id]/  ('' = no thumbnail)
+     video     — embed URL for project hero ('' = none)
+                   YouTube: 'https://www.youtube.com/embed/ID?autoplay=1&mute=1&loop=1&playlist=ID&rel=0'
+                   Vimeo:   'https://player.vimeo.com/video/ID?autoplay=1&muted=1&loop=1'
+     images    — array of additional image filenames inside assets/[id]/
+     hidden    — true = hidden from gallery  |  false = visible
+     ORDER in array = gallery display order
      ===================================================================== */
   var projects = [
-    {id:'bloom',title:'Bloom',year:'2024',tags:['games','art-direction','tech-art','3d'],desc:'As an Art Director at DADIU, I guided a department of 3D artists - establishing the full visual language, characters, flora, and shader driven environments - for a musical puzzle game about planting flowers on desolate planets.',thumb:'SuperFlowerLotusGrowCinematic.gif',video:'https://www.youtube.com/embed/LUhEjle3jiI?autoplay=1&mute=1&loop=1&playlist=LUhEjle3jiI&rel=0&controls=1',images:[],hidden:false},
-    {id:'being',title:'Being',year:'2020',tags:['games','solo-dev','art-direction','tech-art','3d'],desc:'Solo-developed as my design thesis at Bezalel, Being is a puzzle game exploring consciousness, community, and identity through colorful, object-driven worlds. Sandberg Award winner and Best Project at TISFF 2022.',thumb:'BeingsSmallXS2.gif',video:'',images:[],hidden:false},
-    {id:'loop-troupe',title:'Loop Troupe',year:'2023',tags:['animation','3d'],desc:'',thumb:'chef-whisk-small.gif',video:'',images:[],hidden:false},
-    {id:'imprint',title:'Imprint',year:'2023',tags:['games','solo-dev','art-direction','tech-art','3d'],desc:'',thumb:'',video:'',images:[],hidden:false},
-    {id:'consumania',title:'Consumania',year:'2024',tags:['games','art-direction','tech-art','3d'],desc:'Solo art director and 3D artist on a satirical open-world game about consumer culture. Shaped the entire visual world from concept to in-engine assets.',thumb:'',video:'',images:[],hidden:false},
-    {id:'playground',title:'Playground',year:'2022',tags:['animation','motion','2d'],desc:'',thumb:'',video:'',images:[],hidden:false},
-    {id:'combotics',title:'ComboTics',year:'2021',tags:['games','solo-dev','animation','2d'],desc:'',thumb:'',video:'',images:[],hidden:false},
-    {id:'tryst',title:'Tryst',year:'2022',tags:['games','visual-design','tech-art','3d'],desc:'',thumb:'',video:'',images:[],hidden:false},
-    {id:'noodle',title:'Noodle',year:'2022',tags:['animation','2d'],desc:'',thumb:'',video:'',images:[],hidden:false},
-    {id:'lightricks',title:'Lightricks',year:'2022',tags:['animation','motion','2d'],desc:'',thumb:'',video:'',images:[],hidden:false},
-    {id:'the-last-question',title:'The Last Question',year:'2023',tags:['games','visual-design','3d'],desc:'',thumb:'',video:'',images:[],hidden:false},
-    {id:'matilena',title:'Matilena',year:'2023',tags:['games','visual-design','2d'],desc:'',thumb:'',video:'',images:[],hidden:false},
-    {id:'trial-and-error',title:'Trial and Error',year:'2022',tags:['games','visual-design','tech-art','3d'],desc:'',thumb:'',video:'',images:[],hidden:false},
-    {id:'illustration',title:'Illustration',year:'Ongoing',tags:['visual-design','2d','illustration'],desc:'A collection of 2D illustrations spanning posters, characters, and personal work.',thumb:'',video:'',images:[],hidden:false}
+
+    {
+      id:     'bloom',
+      title:  'Bloom',
+      year:   '2024',
+      tags:   ['games', 'art-direction', 'tech-art', '3d'],
+      desc:   'As an Art Director at DADIU, I guided a department of 3D artists - establishing the full visual language, characters, flora, and shader driven environments - for a musical puzzle game about planting flowers on desolate planets.',
+      thumb:  'SuperFlowerLotusGrowCinematic.gif',
+      video:  'https://www.youtube.com/embed/LUhEjle3jiI?autoplay=1&mute=1&loop=1&playlist=LUhEjle3jiI&rel=0&controls=1',
+      images: [],
+      hidden: false
+    },
+
+    {
+      id:     'being',
+      title:  'Being',
+      year:   '2020',
+      tags:   ['games', 'solo-dev', 'art-direction', 'tech-art', '3d'],
+      desc:   'Solo-developed as my design thesis at Bezalel, Being is a puzzle game exploring consciousness, community, and identity through colorful, object-driven worlds. Sandberg Award winner and Best Project at TISFF 2022.',
+      thumb:  'BeingsSmallXS2.gif',
+      video:  '',
+      images: [],
+      hidden: false
+    },
+
+    {
+      id:     'loop-troupe',
+      title:  'Loop Troupe',
+      year:   '2023',
+      tags:   ['animation', '3d'],
+      desc:   '',
+      thumb:  'chef-whisk-small.gif',
+      video:  '',
+      images: [],
+      hidden: false
+    },
+
+    {
+      id:     'imprint',
+      title:  'Imprint',
+      year:   '2023',
+      tags:   ['games', 'solo-dev', 'art-direction', 'tech-art', '3d'],
+      desc:   '',
+      thumb:  '',
+      video:  '',
+      images: [],
+      hidden: false
+    },
+
+    {
+      id:     'consumania',
+      title:  'Consumania',
+      year:   '2024',
+      tags:   ['games', 'art-direction', 'tech-art', '3d'],
+      desc:   'Solo art director and 3D artist on a satirical open-world game about consumer culture. Shaped the entire visual world from concept to in-engine assets.',
+      thumb:  '',
+      video:  '',
+      images: [],
+      hidden: false
+    },
+
+    {
+      id:     'playground',
+      title:  'Playground',
+      year:   '2022',
+      tags:   ['animation', 'motion', '2d'],
+      desc:   '',
+      thumb:  '',
+      video:  '',
+      images: [],
+      hidden: false
+    },
+
+    {
+      id:     'combotics',
+      title:  'ComboTics',
+      year:   '2021',
+      tags:   ['games', 'solo-dev', 'animation', '2d'],
+      desc:   '',
+      thumb:  '',
+      video:  '',
+      images: [],
+      hidden: false
+    },
+
+    {
+      id:     'tryst',
+      title:  'Tryst',
+      year:   '2022',
+      tags:   ['games', 'visual-design', 'tech-art', '3d'],
+      desc:   '',
+      thumb:  '',
+      video:  '',
+      images: [],
+      hidden: false
+    },
+
+    {
+      id:     'noodle',
+      title:  'Noodle',
+      year:   '2022',
+      tags:   ['animation', '2d'],
+      desc:   '',
+      thumb:  '',
+      video:  '',
+      images: [],
+      hidden: false
+    },
+
+    {
+      id:     'lightricks',
+      title:  'Lightricks',
+      year:   '2022',
+      tags:   ['animation', 'motion', '2d'],
+      desc:   '',
+      thumb:  '',
+      video:  '',
+      images: [],
+      hidden: false
+    },
+
+    {
+      id:     'the-last-question',
+      title:  'The Last Question',
+      year:   '2023',
+      tags:   ['games', 'visual-design', '3d'],
+      desc:   '',
+      thumb:  '',
+      video:  '',
+      images: [],
+      hidden: false
+    },
+
+    {
+      id:     'matilena',
+      title:  'Matilena',
+      year:   '2023',
+      tags:   ['games', 'visual-design', '2d'],
+      desc:   '',
+      thumb:  '',
+      video:  '',
+      images: [],
+      hidden: false
+    },
+
+    {
+      id:     'trial-and-error',
+      title:  'Trial and Error',
+      year:   '2022',
+      tags:   ['games', 'visual-design', 'tech-art', '3d'],
+      desc:   '',
+      thumb:  '',
+      video:  '',
+      images: [],
+      hidden: false
+    },
+
+    {
+      id:     'illustration',
+      title:  'Illustration',
+      year:   'Ongoing',
+      tags:   ['visual-design', '2d', 'illustration'],
+      desc:   'A collection of 2D illustrations spanning posters, characters, and personal work.',
+      thumb:  '',
+      video:  '',
+      images: [],
+      hidden: false
+    }
+
   ];
 
+  /* =====================================================================
+     FILTER DEFINITIONS — order controls left panel display order
+     ===================================================================== */
   var filterDefs = [
-    {key:'all',label:'All'},{key:'games',label:'Games'},{key:'animation',label:'Animation'},
-    {key:'art-direction',label:'Art Direction'},{key:'visual-design',label:'Visual Design'},
-    {key:'tech-art',label:'Tech Art'},{key:'motion',label:'Motion'},
-    {key:'3d',label:'3D'},{key:'2d',label:'2D'},
-    {key:'illustration',label:'Illustration'},{key:'solo-dev',label:'Solo Dev'}
+    { key: 'all',           label: 'All' },
+    { key: 'games',         label: 'Games' },
+    { key: 'animation',     label: 'Animation' },
+    { key: 'art-direction', label: 'Art Direction' },
+    { key: 'visual-design', label: 'Visual Design' },
+    { key: 'tech-art',      label: 'Tech Art' },
+    { key: 'motion',        label: 'Motion' },
+    { key: '3d',            label: '3D' },
+    { key: '2d',            label: '2D' },
+    { key: 'illustration',  label: 'Illustration' },
+    { key: 'solo-dev',      label: 'Solo Dev' }
   ];
 
   /* =====================================================================
-     ENGINE
-
-     TORUS IMPLEMENTATION — why while-loop bounds, not modulo:
-     ─────────────────────────────────────────────────────────────────────
-     Standard mod maps rawX → [0, period). But the viewport + card-size
-     zone we need is (-CW, W+CW), which has width W+2*CW ≠ period.
-     Trying to map (-CW, 0) through mod sends those values (card entering
-     from left) to (period-CW, period), which may land INSIDE the viewport
-     unexpectedly, causing cards to teleport.
-
-     The fix: use explicit threshold checks, not mod:
-       - Wrap right→left: when rawX < -CW  (card fully off left)
-       - Wrap left→right: when rawX > W     (card top edge past right border)
-     For Y:
-       - Wrap bottom→top: when rawY < -CH  (card fully off top)
-       - Wrap top→bottom: when rawY > H    (card top edge past bottom border)
-
-     A card at rawX = -1 stays at x=-1 (1px off left, correct).
-     A card at rawX = -CW-1 wraps to rawX + period (entering from right).
-     This is identical to the Asteroids game's toroidal space.
-
-     Each row uses its own rowPeriod = rowSize*(CW+GAP) so row 3 (4 cards)
-     tiles with period 4*(CW+GAP), not 5*(CW+GAP), eliminating the gap.
-
-     Rows start staggered by 1/3 and 2/3 of their period so all 14 projects
-     are visible on load (reduces perception of repetition).
+     CORE LOGIC — no need to edit below this line
      ===================================================================== */
-
   var activeFilter = 'all';
-  var cards = [];
-  var animFrame = null;
-  var mode = 'scroll';
-  var returnStart = 0;
-  var CW = 1, CH = 1, THUMB_H = 1;
-  var rowSizes = [];    /* rowSizes[r] = count of real cards in row r */
-  var rowOffset = [0, 0, 0];
-  var panOffsetY = 0;
-  var panVelX = 0, panVelY = 0;
-  var panning = false, panMoved = false;
-  var panLastX = 0, panLastY = 0, panLastT = 0;
-  var panHistX = [], panHistY = [], panHistT = [];
-  var exState = {};
 
-  function getRP() { return document.getElementById('right-panel'); }
+  var svgIG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>';
+  var svgLI = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><line x1="8" y1="11" x2="8" y2="16"/><line x1="8" y1="8" x2="8" y2="8.5" stroke-width="2"/><path d="M12 11v5M12 11a3 3 0 0 1 6 0v5"/></svg>';
+  var svgEM = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>';
 
-  function calcLayout() {
-    var H = getRP().offsetHeight;
-    CH      = (H - GAP * (ROWS + 1)) / ROWS;
-    THUMB_H = CH - LABEL_H;
-    CW      = Math.round(THUMB_H * CARD_ASPECT);
+  function socialRowHTML(aboutOnclick, aboutLabel) {
+    return '<div class="identity">'
+      + '<div class="bio">' + BIO_SHORT + '</div>'
+      + '<div class="social-row">'
+      + '<a href="https://www.instagram.com/matikalter" target="_blank" class="social-icon">' + svgIG + '</a>'
+      + '<a href="https://www.linkedin.com/in/matikalter/" target="_blank" class="social-icon">' + svgLI + '</a>'
+      + '<a href="mailto:mkalterr@gmail.com" class="social-icon">' + svgEM + '</a>'
+      + '<span class="about-link" onclick="' + aboutOnclick + '">' + aboutLabel + '</span>'
+      + '</div></div>';
   }
 
-  function baseX(col) { return GAP + col * (CW + GAP); }
-  function baseY(row) { return GAP + row * (CH + GAP); }
-
-  /*
-   * CORRECT TORUS — bounds check, not modulo.
-   *
-   * torusX: keeps rawX in (-CW, W+CW) using the row's own period.
-   *   - rawX < -CW  → card fully off left  → move one period right (entering from right)
-   *   - rawX > W    → card left edge past right boundary → move one period left
-   *
-   * torusY: keeps rawY in (-CH, H+CH) using the column period.
-   *   - rawY < -CH  → card fully off top   → move one period down
-   *   - rawY > H    → card top past bottom → move one period up
-   *
-   * While loops handle large pan velocities (multiple wraps per frame).
-   */
-  function torusX(rawX, rowIdx, W) {
-    var period = rowSizes[rowIdx] * (CW + GAP);
-    var x = rawX;
-    while (x < -CW)  x += period;
-    while (x > W)    x -= period;
-    return x;
-  }
-
-  function torusY(rawY, H) {
-    var period = ROWS * (CH + GAP);
-    var y = rawY;
-    while (y < -CH)  y += period;
-    while (y > H)    y -= period;
-    return y;
-  }
-
-  /* ── Build cards ── */
-  function initCards() {
-    calcLayout();
-    var canvas  = document.getElementById('float-canvas');
-    var visible = projects.filter(function(p) { return !p.hidden; });
-    var perRow  = Math.ceil(visible.length / ROWS);
-
-    /* Assign projects to rows */
-    rowSizes = [];
-    var rowProjects = [];
-    for (var r = 0; r < ROWS; r++) {
-      var slice = visible.slice(r * perRow, (r + 1) * perRow);
-      rowProjects.push(slice);
-      rowSizes.push(slice.length);
-    }
-
-    /*
-     * Stagger row start offsets so all projects are visible on load.
-     * Row 0 starts at 0, row 1 at -1/3 of its period, row 2 at -2/3.
-     * This distributes the 14 thumbnails across the visible width.
-     */
-    for (var r = 0; r < ROWS; r++) {
-      var period = rowSizes[r] * (CW + GAP);
-      rowOffset[r] = -Math.round(period * r / ROWS);
-    }
-    panOffsetY = 0;
-
-    /* Create one DOM card per real project */
-    for (var r = 0; r < ROWS; r++) {
-      rowProjects[r].forEach(function(p, col) {
-        var el = document.createElement('div');
-        el.className = 'proj-card';
-        el.setAttribute('data-row', r);
-        el.setAttribute('data-col', col);
-        el.setAttribute('data-id',  p.id);
-        el.style.width = CW + 'px';
-        var x = baseX(col), y = baseY(r);
-        el.style.left = x + 'px';
-        el.style.top  = y + 'px';
-
-        var thumbHTML = p.thumb
-          ? '<img src="assets/' + p.id + '/' + p.thumb + '" alt="' + p.title + '" draggable="false">'
-          : '';
-        el.innerHTML =
-          '<div class="card-hit" data-proj-id="' + p.id + '"></div>'
-          + '<div class="proj-thumb" style="width:' + CW + 'px;height:' + THUMB_H + 'px;">' + thumbHTML + '</div>'
-          + '<div class="proj-hover-name">' + p.title + '</div>';
-
-        canvas.appendChild(el);
-        exState[p.id] = exState[p.id] || {vx:0, vy:0, x:x, y:y, driftAngle:0};
-        cards.push({el:el, id:p.id, tags:p.tags, rowIdx:r, colIdx:col});
-      });
-    }
-
-    document.getElementById('float-canvas').addEventListener('click', function(e) {
-      if (panMoved) return;
-      var hit = e.target.classList && e.target.classList.contains('card-hit') ? e.target :
-                (e.target.closest ? e.target.closest('.card-hit') : null);
-      if (hit) { var pid = hit.getAttribute('data-proj-id'); if (pid) window.openProject(pid); }
-    });
-
-    applyFilter();
-    updateCount();
-    attachPan();
-  }
-
-  function applyFilter() {
-    cards.forEach(function(s) {
-      var match = activeFilter === 'all' || s.tags.indexOf(activeFilter) !== -1;
-      if (match) s.el.classList.remove('fhidden');
-      else        s.el.classList.add('fhidden');
-    });
-    updateCount();
-  }
-
-  function updateCount() {
-    var n = cards.filter(function(s) { return !s.el.classList.contains('fhidden'); }).length;
-    var c = document.getElementById('grid-count');
-    if (c) c.textContent = n + ' project' + (n !== 1 ? 's' : '');
-  }
-
-  /* ── Tick ── */
-  function tick() {
-    var rp  = getRP();
-    var W   = rp.offsetWidth;
-    var H   = rp.offsetHeight;
-    var now = performance.now();
-
-    if (mode === 'returning') {
-      var t    = Math.min(1, (now - returnStart) / RETURN_DUR);
-      var ease = t * t * (3 - 2 * t);   /* smoothstep ease-in-out */
-      cards.forEach(function(s) {
-        if (s.el.classList.contains('fhidden')) return;
-        var ex = exState[s.id];
-        if (!ex) return;
-        var x = ex._fromX + (baseX(s.colIdx) - ex._fromX) * ease;
-        var y = ex._fromY + (baseY(s.rowIdx) - ex._fromY) * ease;
-        s.el.style.left = x + 'px';
-        s.el.style.top  = y + 'px';
-      });
-      if (t >= 1) {
-        mode = 'scroll';
-        /* Reset staggered offsets */
-        for (var r = 0; r < ROWS; r++) {
-          var period = rowSizes[r] * (CW + GAP);
-          rowOffset[r] = -Math.round(period * r / ROWS);
-        }
-        panOffsetY = 0;
-      }
-
-    } else if (mode === 'scroll') {
-      if (!panning) {
-        panVelX *= FRICTION; panVelY *= FRICTION;
-        if (Math.abs(panVelX) < 0.005) panVelX = 0;
-        if (Math.abs(panVelY) < 0.005) panVelY = 0;
-      }
-      for (var r = 0; r < ROWS; r++) {
-        rowOffset[r] += (r % 2 === 0 ? 1 : -1) * ROW_SCROLL_SPEED;
-        if (!panning) rowOffset[r] += panVelX;
-      }
-      if (!panning) panOffsetY += panVelY;
-
-      cards.forEach(function(s) {
-        if (s.el.classList.contains('fhidden')) return;
-        var x = torusX(baseX(s.colIdx) + rowOffset[s.rowIdx], s.rowIdx, W);
-        var y = torusY(baseY(s.rowIdx) + panOffsetY, H);
-        s.el.style.left = x + 'px';
-        s.el.style.top  = y + 'px';
-      });
-
-    } else if (mode === 'exploded') {
-      var ids = Object.keys(exState);
-      for (var i = 0; i < ids.length; i++) {
-        var ex  = exState[ids[i]];
-        var spd = Math.sqrt(ex.vx * ex.vx + ex.vy * ex.vy);
-        if (spd > MIN_DRIFT) {
-          ex.vx *= FRICTION; ex.vy *= FRICTION;
-          if (Math.sqrt(ex.vx*ex.vx+ex.vy*ex.vy) < MIN_DRIFT) {
-            ex.vx = Math.cos(ex.driftAngle)*MIN_DRIFT;
-            ex.vy = Math.sin(ex.driftAngle)*MIN_DRIFT;
-          }
-        } else {
-          ex.vx = Math.cos(ex.driftAngle)*MIN_DRIFT;
-          ex.vy = Math.sin(ex.driftAngle)*MIN_DRIFT;
-        }
-        /* Use canvas-size torus for free-floating explode mode */
-        ex.x = torusX(ex.x + ex.vx, 0, W);   /* rowIdx 0 = use full-canvas period trick */
-        ex.y = torusY(ex.y + ex.vy, H);
-      }
-      /* Apply to all DOM cards */
-      cards.forEach(function(s) {
-        if (s.el.classList.contains('fhidden')) return;
-        var ex = exState[s.id];
-        if (ex) { s.el.style.left = ex.x + 'px'; s.el.style.top = ex.y + 'px'; }
-      });
-    }
-
-    animFrame = requestAnimationFrame(tick);
-  }
-
-  function startAnim() { if (!animFrame) animFrame = requestAnimationFrame(tick); }
-  function stopAnim()  { if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; } }
-
-  /* ── Pan ── */
-  function attachPan() {
-    var canvas = document.getElementById('float-canvas');
-    function onDown(e) {
-      if (e.target && e.target.id === 'shuffle-btn') return;
-      e.preventDefault();
-      var cx = e.touches ? e.touches[0].clientX : e.clientX;
-      var cy = e.touches ? e.touches[0].clientY : e.clientY;
-      panning = true; panMoved = false;
-      panLastX=cx; panLastY=cy; panLastT=performance.now();
-      panVelX=0; panVelY=0; panHistX=[]; panHistY=[]; panHistT=[];
-      canvas.classList.add('panning');
-
-      function onMove(e2) {
-        var mx = e2.touches ? e2.touches[0].clientX : e2.clientX;
-        var my = e2.touches ? e2.touches[0].clientY : e2.clientY;
-        var dx=mx-panLastX, dy=my-panLastY;
-        var now=performance.now(), dt=Math.max(1,now-panLastT);
-        if (Math.abs(dx)>3||Math.abs(dy)>3) panMoved=true;
-
-        if (mode==='scroll') {
-          for (var r=0;r<ROWS;r++) rowOffset[r]+=dx;
-          panOffsetY+=dy;
-        } else if (mode==='exploded') {
-          var W=getRP().offsetWidth, H=getRP().offsetHeight;
-          var ids=Object.keys(exState);
-          for (var i=0;i<ids.length;i++){
-            var ex=exState[ids[i]];
-            ex.x=torusX(ex.x+dx,0,W);
-            ex.y=torusY(ex.y+dy,H);
-          }
-          cards.forEach(function(s){
-            if (s.el.classList.contains('fhidden')) return;
-            var ex=exState[s.id];
-            if (ex){s.el.style.left=ex.x+'px';s.el.style.top=ex.y+'px';}
-          });
-        }
-
-        panHistX.push(dx/dt); panHistY.push(dy/dt); panHistT.push(dt);
-        if (panHistX.length>6){panHistX.shift();panHistY.shift();panHistT.shift();}
-        panLastX=mx; panLastY=my; panLastT=now;
-      }
-
-      function onUp() {
-        panning=false; canvas.classList.remove('panning');
-        var n=panHistX.length;
-        if (n>0){
-          var sumX=0,sumY=0,wSum=0;
-          for (var i=0;i<n;i++){var w=i+1;sumX+=panHistX[i]*w;sumY+=panHistY[i]*w;wSum+=w;}
-          panVelX=(sumX/wSum)*16.67*VEL_SCALE;
-          panVelY=(sumY/wSum)*16.67*VEL_SCALE;
-        }
-        document.removeEventListener('mousemove',onMove);
-        document.removeEventListener('mouseup',onUp);
-        document.removeEventListener('touchmove',onMove);
-        document.removeEventListener('touchend',onUp);
-      }
-
-      document.addEventListener('mousemove',onMove);
-      document.addEventListener('mouseup',onUp);
-      document.addEventListener('touchmove',onMove,{passive:false});
-      document.addEventListener('touchend',onUp);
-    }
-    canvas.addEventListener('mousedown',onDown);
-    canvas.addEventListener('touchstart',onDown,{passive:false});
-  }
-
-  /* ── Shuffle toggle ── */
-  window.toggleShuffle = function() {
-    var btn=document.getElementById('shuffle-btn');
-    if (mode==='scroll'||mode==='returning') {
-      mode='exploded'; btn.textContent='Grid'; btn.classList.add('exploded');
-      panVelX=0; panVelY=0;
-      var seen={};
-      cards.forEach(function(s){
-        if (s.el.classList.contains('fhidden')||seen[s.id]) return;
-        seen[s.id]=true;
-        var ex=exState[s.id];
-        var angle=Math.random()*Math.PI*2;
-        var speed=EXPLODE_SPEED*(0.6+Math.random()*0.8);
-        ex.vx=Math.cos(angle)*speed; ex.vy=Math.sin(angle)*speed;
-        ex.driftAngle=angle;
-        ex.x=parseFloat(s.el.style.left)||ex.x;
-        ex.y=parseFloat(s.el.style.top)||ex.y;
-      });
-    } else {
-      mode='returning'; returnStart=performance.now();
-      btn.textContent='Shuffle'; btn.classList.remove('exploded');
-      panVelX=0; panVelY=0;
-      var seen={};
-      cards.forEach(function(s){
-        if (s.el.classList.contains('fhidden')||seen[s.id]) return;
-        seen[s.id]=true;
-        var ex=exState[s.id];
-        ex._fromX=parseFloat(s.el.style.left)||ex.x;
-        ex._fromY=parseFloat(s.el.style.top)||ex.y;
-        ex.vx=0; ex.vy=0;
-      });
-    }
-  };
-
-  /* ── Resize ── */
-  var resizeTimer=null;
-  window.addEventListener('resize',function(){
-    clearTimeout(resizeTimer);
-    resizeTimer=setTimeout(function(){
-      calcLayout();
-      cards.forEach(function(s){
-        s.el.style.width=CW+'px';
-        var thumb=s.el.querySelector('.proj-thumb');
-        if (thumb){thumb.style.width=CW+'px';thumb.style.height=THUMB_H+'px';}
-      });
-      if (mode==='scroll'){
-        for (var r=0;r<ROWS;r++){
-          var period=rowSizes[r]*(CW+GAP);
-          rowOffset[r]=-Math.round(period*r/ROWS);
-        }
-        panOffsetY=0;
-      }
-    },150);
-  });
-
-  /* =====================================================================
-     NAVIGATION
-     ===================================================================== */
-  var svgIG='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>';
-  var svgLI='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><line x1="8" y1="11" x2="8" y2="16"/><line x1="8" y1="8" x2="8" y2="8.5" stroke-width="2"/><path d="M12 11v5M12 11a3 3 0 0 1 6 0v5"/></svg>';
-  var svgEM='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>';
-
-  function socialRowHTML(a,b){
-    return '<div class="identity"><div class="bio">'+BIO_SHORT+'</div><div class="social-row">'
-      +'<a href="https://www.instagram.com/matikalter" target="_blank" class="social-icon">'+svgIG+'</a>'
-      +'<a href="https://www.linkedin.com/in/matikalter/" target="_blank" class="social-icon">'+svgLI+'</a>'
-      +'<a href="mailto:mkalterr@gmail.com" class="social-icon">'+svgEM+'</a>'
-      +'<span class="about-link" onclick="'+a+'">'+b+'</span></div></div>';
-  }
-
-  function filterTagsHTML(){
-    return filterDefs.map(function(f){
-      return '<span class="tag'+(activeFilter===f.key?' active':'')+'" data-filter="'+f.key+'">'+f.label+'</span>';
+  function filterTagsHTML() {
+    return filterDefs.map(function(f) {
+      return '<span class="tag' + (activeFilter === f.key ? ' active' : '') + '" data-filter="' + f.key + '">' + f.label + '</span>';
     }).join('');
   }
 
-  function bindTags(){
-    document.querySelectorAll('.tag').forEach(function(tag){
-      tag.addEventListener('click',function(){
-        document.querySelectorAll('.tag').forEach(function(t){t.classList.remove('active');});
-        tag.classList.add('active'); activeFilter=tag.dataset.filter; applyFilter();
+  /* =====================================================================
+     GALLERY — Infinite scrolling 3×4 grid with momentum drag
+     ===================================================================== */
+
+  /* ─── AUTO-SCROLL SPEED — adjust this value freely ─── */
+  var GALLERY_SPEED = 30;       /* px / second, rightward direction */
+
+  /* ── layout constants ── */
+  var G_PAD  = 50;              /* edge padding (px) */
+  var G_GAP  = 80;              /* gutter between cells (px) — must exceed label height (~18px) */
+  var G_ROWS = 3;               /* number of rows */
+  var G_COLS = 4;               /* visible columns — defines cell width */
+
+  /* ── physics ── */
+  var G_FRICTION   = 0.88;      /* velocity multiplier per frame at ~60fps */
+  var G_CLICK_DIST = 5;         /* px: max total drag still counted as a click */
+
+  /* ── gallery state ── */
+  var gal = {
+    rows: [],                   /* [{items[], period, copies}] per row */
+    cw: 0, ch: 0,              /* cell width / height (px) */
+    setH: 0,                   /* height of one full row-set = viewport height */
+    hOff: 0, vOff: 0,          /* running offsets (px) */
+    velX: 0, velY: 0,          /* momentum (px / ms) */
+    drag: false,               /* pointer is held */
+    dsx: 0, dsy: 0,            /* drag start coords */
+    dlx: 0, dly: 0, dlt: 0,   /* last coords / timestamp for velocity */
+    dd: 0,                     /* total drag distance — click detection */
+    autoMul: 1,                /* 0 → 1 ramp: smoothly resumes auto-scroll after drag */
+    raf: null, ft: 0,
+    on: false,
+    tracks: [],                /* cached NodeList[2] per row index */
+    outer: null,               /* cached #gallery-outer element */
+    evBound: false             /* event listeners attached once */
+  };
+
+  /* ── build / rebuild on filter change or resize ── */
+  function buildGallery() {
+    if (gal.raf) { cancelAnimationFrame(gal.raf); gal.raf = null; }
+    gal.on = false;
+
+    /* compute dimensions from window — works even when home-view is hidden */
+    var leftW = parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--left-w')
+    ) || 340;
+    var vpW  = window.innerWidth  - leftW;
+    var vpH  = window.innerHeight;
+    gal.cw   = (vpW - 2*G_PAD - (G_COLS - 1)*G_GAP) / G_COLS;
+    gal.ch   = (vpH - 2*G_PAD - (G_ROWS - 1)*G_GAP) / G_ROWS;
+    /* setH = G_ROWS*(ch+G_GAP): ensures the gap at the vertical loop seam
+       equals G_GAP exactly — same as the gap between every other row pair */
+    gal.setH = G_ROWS * (gal.ch + G_GAP);
+
+    /* reset motion state */
+    gal.hOff = 0; gal.vOff = 0;
+    gal.velX = 0; gal.velY = 0;
+    gal.autoMul = 1;
+
+    /* always lay out ALL non-hidden projects — filter only toggles visibility */
+    var vis = projects.filter(function(p) { return !p.hidden; });
+
+    /* distribute projects evenly across G_ROWS, preserving index order
+       e.g. 10 items → rows of 4, 3, 3 */
+    var rowArrs = (function() {
+      var r = [], i;
+      for (i = 0; i < G_ROWS; i++) r.push([]);
+      if (!vis.length) return r;
+      var base = Math.floor(vis.length / G_ROWS);
+      var rem  = vis.length % G_ROWS;
+      var idx  = 0;
+      for (i = 0; i < G_ROWS; i++) {
+        var n = base + (i < rem ? 1 : 0);
+        while (n--) r[i].push(vis[idx++]);
+      }
+      return r;
+    }());
+
+    /* build row data: period = one seamless tile width, copies = enough to fill viewport */
+    gal.rows = rowArrs.map(function(items) {
+      if (!items.length) return { items: [], period: gal.cw + G_GAP, copies: 0 };
+      var period  = items.length * (gal.cw + G_GAP);
+      var copies  = Math.max(3, Math.ceil((vpW + period) / period) + 1);
+      return { items: items, period: period, copies: copies };
+    });
+
+    renderGallery();
+    applyFilter();   /* show/hide items based on current activeFilter */
+
+    gal.on = true;
+    gal.ft = performance.now();
+    gal.raf = requestAnimationFrame(galTick);
+  }
+
+  /* look up a project by id */
+  function getProjectById(id) {
+    for (var i = 0; i < projects.length; i++) {
+      if (projects[i].id === id) return projects[i];
+    }
+    return null;
+  }
+
+  /* show/hide items in place — does NOT rebuild the gallery or change positions */
+  function applyFilter() {
+    var outer = document.getElementById('gallery-outer');
+    if (!outer) return;
+    outer.querySelectorAll('.g-item').forEach(function(item) {
+      var p = getProjectById(item.dataset.id);
+      if (!p) return;
+      var show = activeFilter === 'all' || p.tags.indexOf(activeFilter) !== -1;
+      item.style.opacity       = show ? '' : '0';
+      item.style.pointerEvents = show ? '' : 'none';
+    });
+    /* count visible (filtered) projects */
+    var n = projects.filter(function(p) {
+      if (p.hidden) return false;
+      return activeFilter === 'all' || p.tags.indexOf(activeFilter) !== -1;
+    }).length;
+    updateCount(n);
+  }
+
+  /* called by tag clicks — applies filter without rebuilding the gallery */
+  function filterGrid() { applyFilter(); }
+
+  /* ── project count display ── */
+  function updateCount(n) {
+    var el = document.getElementById('grid-count');
+    if (el) el.textContent = n + ' project' + (n !== 1 ? 's' : '');
+  }
+
+  /* ── render DOM ── */
+  function renderGallery() {
+    var outer = document.getElementById('gallery-outer');
+    if (!outer) return;
+    gal.outer = outer;
+
+    var cw = gal.cw, ch = gal.ch;
+
+    function itemHTML(p) {
+      var img = p.thumb
+        ? '<img src="assets/' + p.id + '/' + p.thumb + '" alt="' + p.title + '" draggable="false">'
+        : '';
+      return '<div class="g-item" data-id="' + p.id + '" style="width:' + cw + 'px">'
+           + '<div class="g-cell" style="width:' + cw + 'px;height:' + ch + 'px">' + img + '</div>'
+           + '<div class="g-label" style="width:' + cw + 'px">' + p.title + '</div>'
+           + '</div>';
+    }
+
+    /* build one complete set of G_ROWS rows */
+    function makeSetHTML() {
+      var html = '', y = G_PAD;
+      for (var ri = 0; ri < G_ROWS; ri++) {
+        var row = gal.rows[ri], content = '';
+        for (var c = 0; c < row.copies; c++)
+          for (var k = 0; k < row.items.length; k++)
+            content += itemHTML(row.items[k]);
+        html += '<div style="position:absolute;top:' + y + 'px;left:0;right:0;height:' + ch + 'px">'
+              + '<div class="g-track" data-ri="' + ri + '" style="gap:' + G_GAP + 'px">' + content + '</div>'
+              + '</div>';
+        y += ch + G_GAP;
+      }
+      return html;
+    }
+
+    /* two identical sets stacked — enables seamless vertical looping */
+    outer.innerHTML =
+      '<div style="position:absolute;top:0;left:0;width:100%;height:' + gal.setH + 'px">'  + makeSetHTML() + '</div>' +
+      '<div style="position:absolute;top:' + gal.setH + 'px;left:0;width:100%;height:' + gal.setH + 'px">' + makeSetHTML() + '</div>';
+
+    /* cache track NodeLists per row (2 tracks per row: one in each set) */
+    gal.tracks = [];
+    for (var ri = 0; ri < G_ROWS; ri++) {
+      gal.tracks[ri] = outer.querySelectorAll('.g-track[data-ri="' + ri + '"]');
+    }
+
+    applyGalTransforms();
+    if (!gal.evBound) { bindGalleryEvents(); gal.evBound = true; }
+  }
+
+  /* ── write CSS transforms ── */
+  function applyGalTransforms() {
+    if (!gal.outer) return;
+
+    /* vertical: wrap vOff into [0, setH) — two stacked copies handle the loop */
+    var vMod = ((gal.vOff % gal.setH) + gal.setH) % gal.setH;
+    gal.outer.style.transform = 'translateY(' + (-vMod) + 'px)';
+
+    /* horizontal per row: track starts (period) to the left of G_PAD,
+       hMod slides it rightward — when it reaches period we wrap invisibly */
+    for (var ri = 0; ri < gal.rows.length; ri++) {
+      var row = gal.rows[ri];
+      if (!row.items.length || !gal.tracks[ri] || !gal.tracks[ri].length) continue;
+      var hMod = ((gal.hOff % row.period) + row.period) % row.period;
+      var tx   = G_PAD - row.period + hMod;
+      for (var t = 0; t < gal.tracks[ri].length; t++) {
+        gal.tracks[ri][t].style.transform = 'translateX(' + tx + 'px)';
+      }
+    }
+  }
+
+  /* ── animation loop ── */
+  function galTick(now) {
+    if (!gal.on) return;
+    var dt = Math.min(now - gal.ft, 50); /* cap delta — prevents jumps after tab-switch */
+    gal.ft = now;
+
+    if (!gal.drag) {
+      /* apply momentum */
+      gal.hOff += gal.velX * dt;
+      gal.vOff += gal.velY * dt;
+
+      /* frame-rate-independent friction */
+      var decay = Math.pow(G_FRICTION, dt / (1000 / 60));
+      gal.velX *= decay;
+      gal.velY *= decay;
+      if (Math.abs(gal.velX) < 0.0004) gal.velX = 0;
+      if (Math.abs(gal.velY) < 0.0004) gal.velY = 0;
+
+      /* smoothly ramp auto-scroll back up after drag release */
+      var ramp = 1 - Math.pow(0.96, dt / (1000 / 60));
+      gal.autoMul += (1 - gal.autoMul) * ramp;
+
+      /* auto-scroll — always rightward, blends in as momentum fades */
+      gal.hOff += (GALLERY_SPEED / 1000) * dt * gal.autoMul;
+    }
+
+    /* keep vOff in [0, setH) for seamless vertical wrap */
+    gal.vOff = ((gal.vOff % gal.setH) + gal.setH) % gal.setH;
+
+    applyGalTransforms();
+    gal.raf = requestAnimationFrame(galTick);
+  }
+
+  /* ── pointer / wheel events ── */
+  function bindGalleryEvents() {
+    var vp = document.getElementById('gallery-viewport');
+    if (!vp) return;
+
+    /* ── pointer down ── */
+    function onDown(cx, cy) {
+      gal.drag    = true;
+      gal.autoMul = 0;          /* pause auto-scroll immediately */
+      gal.velX    = 0;
+      gal.velY    = 0;
+      gal.dsx = gal.dlx = cx;
+      gal.dsy = gal.dly = cy;
+      gal.dlt     = performance.now();
+      gal.dd      = 0;
+      vp.classList.add('is-dragging');
+    }
+
+    /* ── pointer move ── */
+    function onMove(cx, cy) {
+      if (!gal.drag) return;
+      var dx  = cx - gal.dlx;
+      var dy  = cy - gal.dly;
+      var now = performance.now();
+      var dt  = now - gal.dlt || 1;
+
+      gal.hOff += dx;           /* drag right  → hOff grows   → content moves right  */
+      gal.vOff -= dy;           /* drag down   → vOff shrinks  → content follows finger */
+      gal.dd   += Math.sqrt(dx * dx + dy * dy);
+
+      /* capture velocity for momentum on release */
+      gal.velX  =  dx / dt;
+      gal.velY  = -dy / dt;
+
+      gal.dlx = cx; gal.dly = cy; gal.dlt = now;
+    }
+
+    /* ── pointer up ── */
+    function onUp(cx, cy, target) {
+      if (!gal.drag) return;
+      gal.drag = false;
+      vp.classList.remove('is-dragging');
+
+      /* click: navigate to project if drag distance was negligible */
+      if (gal.dd < G_CLICK_DIST) {
+        var item = target && target.closest ? target.closest('.g-item') : null;
+        if (item && item.dataset.id) window.openProject(item.dataset.id);
+      }
+      /* velX / velY carry momentum; autoMul ramps back to 1 in galTick */
+    }
+
+    /* mouse */
+    vp.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      onDown(e.clientX, e.clientY);
+    });
+    document.addEventListener('mousemove', function(e) {
+      onMove(e.clientX, e.clientY);
+    });
+    document.addEventListener('mouseup', function(e) {
+      onUp(e.clientX, e.clientY, e.target);
+    });
+
+    /* touch */
+    vp.addEventListener('touchstart', function(e) {
+      if (e.touches.length === 1) onDown(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+    document.addEventListener('touchmove', function(e) {
+      if (gal.drag && e.touches.length === 1) {
+        e.preventDefault();
+        onMove(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: false });
+    document.addEventListener('touchend', function(e) {
+      if (e.changedTouches.length)
+        onUp(e.changedTouches[0].clientX, e.changedTouches[0].clientY, e.target);
+    });
+
+    /* mouse wheel — each notch adds velocity; friction in galTick creates smooth drift */
+    vp.addEventListener('wheel', function(e) {
+      e.preventDefault();
+      /* accumulate velocity from wheel delta — no direct vOff jump so motion
+         stays smooth; galTick friction (G_FRICTION) handles deceleration */
+      gal.velY += e.deltaY * 0.02;
+      gal.velY  = Math.max(-3.5, Math.min(3.5, gal.velY));
+    }, { passive: false });
+  }
+
+  /* ── resize: rebuild after window dimensions change ── */
+  var _galResizeTimer = null;
+  window.addEventListener('resize', function() {
+    clearTimeout(_galResizeTimer);
+    _galResizeTimer = setTimeout(buildGallery, 200);
+  });
+
+  function bindTags() {
+    document.querySelectorAll('.tag').forEach(function(tag) {
+      tag.addEventListener('click', function() {
+        document.querySelectorAll('.tag').forEach(function(t) { t.classList.remove('active'); });
+        tag.classList.add('active');
+        activeFilter = tag.dataset.filter;
+        filterGrid();
       });
     });
   }
 
-  function showHome(){
-    document.getElementById('float-canvas').style.display='block';
-    document.getElementById('project-view').style.display='none';
-    document.getElementById('project-view').classList.remove('visible');
-    document.getElementById('about-view').style.display='none';
-    document.getElementById('about-view').classList.remove('visible');
-    startAnim();
-  }
-
-  function hideHome(){ stopAnim(); document.getElementById('float-canvas').style.display='none'; }
-
-  function setLeftDefault(){
-    document.getElementById('left-panel').innerHTML=
-      '<div class="logo-zone" onclick="window.goHome()">Mati Kalter</div>'
-      +socialRowHTML('window.openAbout()','<span style="font-size:15px;font-weight:300;line-height:1">+</span>&nbsp;About')
-      +'<div class="filter-label">Filter</div>'
-      +'<div class="tags" id="tag-list">'+filterTagsHTML()+'</div>';
-    bindTags();
-  }
-
-  window.goHome=function(){ setLeftDefault(); showHome(); };
-
-  window.openAbout=function(){
-    hideHome();
-    document.getElementById('left-panel').innerHTML=
-      '<div class="logo-zone" onclick="window.goHome()">Mati Kalter</div>'
-      +socialRowHTML('window.goHome()','<span style="font-size:14px;font-weight:300;line-height:1">&#215;</span>&nbsp;Close');
-    document.getElementById('about-view').style.display='grid';
-    document.getElementById('about-view').classList.add('visible');
-  };
-
-  window.openProject=function(id){
-    var p=null;
-    for (var i=0;i<projects.length;i++){if(projects[i].id===id){p=projects[i];break;}}
-    if (!p) return;
-    hideHome();
-    document.getElementById('left-panel').innerHTML=
-      '<div class="logo-zone" onclick="window.goHome()">Mati Kalter</div>'
-      +'<div style="margin-top:4px">'
-      +'<div class="lp-proj-title">'+p.title+'</div>'
-      +'<div class="lp-proj-year">'+p.year+'</div>'
-      +'<div class="lp-proj-tags">'
-      +p.tags.map(function(t){
-        var m=filterDefs.filter(function(f){return f.key===t;});
-        return '<span class="lp-proj-tag">'+(m.length?m[0].label:t)+'</span>';
-      }).join('')
-      +'</div>'
-      +'<div class="lp-proj-desc">'+(p.desc||'Project description coming soon.')+'</div>'
-      +'</div>';
-    var hero=document.getElementById('proj-hero');
-    if (p.video){
-      hero.innerHTML='<iframe src="'+p.video+'" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
-      hero.style.aspectRatio='16/9';
-    } else if (p.images&&p.images.length){
-      hero.innerHTML='<img src="assets/'+p.id+'/'+p.images[0]+'" alt="'+p.title+'">';
-      hero.style.aspectRatio='';
-    } else {
-      hero.innerHTML='<span style="font-size:11px;color:#bbb;text-transform:uppercase;letter-spacing:.08em">'+p.title+' - media</span>';
-      hero.style.aspectRatio='';
+  function setView(id) {
+    var displayTypes = {
+      'home-view':    'block',
+      'project-view': 'block',
+      'about-view':   'grid'
+    };
+    ['home-view', 'project-view', 'about-view'].forEach(function(v) {
+      var el = document.getElementById(v);
+      if (el) { el.style.display = 'none'; el.classList.remove('visible'); }
+    });
+    var target = document.getElementById(id);
+    if (target) {
+      target.style.display = displayTypes[id] || 'block';
+      target.classList.add('visible');
     }
-    var grid=document.getElementById('proj-media-grid');
-    var extras=(p.images&&p.images.length)?(p.video?p.images:p.images.slice(1)):[];
-    grid.innerHTML=extras.map(function(src){
-      return '<div class="proj-media-item"><img src="assets/'+p.id+'/'+src+'" alt=""></div>';
-    }).join('')||'<div class="proj-media-item"></div><div class="proj-media-item"></div>';
-    document.getElementById('project-view').style.display='block';
-    document.getElementById('project-view').classList.add('visible');
-    document.getElementById('project-view').scrollTop=0;
+    window.scrollTo(0, 0);
+  }
+
+  function setLeftDefault() {
+    document.getElementById('left-panel').innerHTML =
+      '<div class="logo-zone" onclick="window.goHome()">Mati Kalter</div>'
+      + socialRowHTML('window.openAbout()', '<span style="font-size:15px;font-weight:300;line-height:1">+</span>&nbsp;About')
+      + '<div class="filter-label">Filter</div>'
+      + '<div class="tags" id="tag-list">' + filterTagsHTML() + '</div>';
+    bindTags();
+    filterGrid();
+  }
+
+  window.goHome = function() {
+    setLeftDefault();
+    setView('home-view');
   };
 
-  /* INIT */
-  document.getElementById('bio-text').textContent=BIO_SHORT;
-  document.getElementById('about-bio-text').textContent=BIO_LONG;
-  setLeftDefault();
-  initCards();
-  showHome();
+  window.openAbout = function() {
+    document.getElementById('left-panel').innerHTML =
+      '<div class="logo-zone" onclick="window.goHome()">Mati Kalter</div>'
+      + socialRowHTML('window.goHome()', '<span style="font-size:14px;font-weight:300;line-height:1">&#215;</span>&nbsp;Close');
+    setView('about-view');
+  };
+
+  window.openProject = function(id) {
+    var p = null;
+    for (var i = 0; i < projects.length; i++) {
+      if (projects[i].id === id) { p = projects[i]; break; }
+    }
+    if (!p) return;
+
+    document.getElementById('left-panel').innerHTML =
+      '<div class="logo-zone" onclick="window.goHome()">Mati Kalter</div>'
+      + '<div style="margin-top:4px">'
+      + '<div class="lp-proj-title">' + p.title + '</div>'
+      + '<div class="lp-proj-year">' + p.year + '</div>'
+      + '<div class="lp-proj-tags">'
+      + p.tags.map(function(t) {
+          var match = filterDefs.filter(function(f) { return f.key === t; });
+          return '<span class="lp-proj-tag">' + (match.length ? match[0].label : t) + '</span>';
+        }).join('')
+      + '</div>'
+      + '<div class="lp-proj-desc">' + (p.desc || 'Project description coming soon.') + '</div>'
+      + '</div>';
+
+    var hero = document.getElementById('proj-hero');
+    if (p.video) {
+      hero.innerHTML = '<iframe src="' + p.video + '" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
+      hero.style.aspectRatio = '16/9';
+    } else if (p.images && p.images.length) {
+      hero.innerHTML = '<img src="assets/' + p.id + '/' + p.images[0] + '" alt="' + p.title + '">';
+      hero.style.aspectRatio = '';
+    } else {
+      hero.innerHTML = '<span style="font-size:11px;color:#bbb;text-transform:uppercase;letter-spacing:.08em">' + p.title + ' \u2014 media</span>';
+      hero.style.aspectRatio = '';
+    }
+
+    var grid = document.getElementById('proj-media-grid');
+    var extraImages = (p.images && p.images.length) ? (p.video ? p.images : p.images.slice(1)) : [];
+    grid.innerHTML = extraImages.map(function(src) {
+      return '<div class="proj-media-item"><img src="assets/' + p.id + '/' + src + '" alt=""></div>';
+    }).join('') || '<div class="proj-media-item"></div><div class="proj-media-item"></div>';
+
+    setView('project-view');
+  };
+
+  /* ── INIT ── */
+  document.getElementById('bio-text').textContent = BIO_SHORT;
+  document.getElementById('about-bio-text').textContent = BIO_LONG;
+  buildGallery();
+  bindTags();
 </script>
 </body>
 </html>
