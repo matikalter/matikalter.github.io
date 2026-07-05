@@ -300,6 +300,94 @@
     );
   }
 
+  /* ── Posters image order ───────────────────────────────────────────────
+     Reorder the posters gallery images + edit each image's description
+     (title/body shown in the toolbar on hover). Mirrors PlaygroundOrder but
+     reads the posters project's `postersImages`, storing order in `postersOrder`
+     and per-image descriptions in `postersDescData` (keyed by src). */
+  function PostersOrder({ t, setTweak }) {
+    const [openDesc, setOpenDesc] = React.useState({});
+    const proj = (window.projects || []).find((p) => p.postersImages && p.postersImages.length);
+    if (!proj) return <div style={{ color: 'rgba(41,38,27,.5)', fontSize: 11 }}>No posters project found.</div>;
+    const all = proj.postersImages.map((im) => im.src);
+    let order = (Array.isArray(t.postersOrder) && t.postersOrder.length)
+      ? t.postersOrder.filter((s) => all.indexOf(s) !== -1)
+      : all.slice();
+    all.forEach((s) => { if (order.indexOf(s) === -1) order.push(s); });
+
+    const niceName = (s) => s.replace(/\.[^.]+$/, '');
+    const move = (i, dir) => {
+      const j = i + dir;
+      if (j < 0 || j >= order.length) return;
+      const next = order.slice();
+      const tmp = next[i]; next[i] = next[j]; next[j] = tmp;
+      setTweak('postersOrder', next);
+    };
+    const btn = {
+      width: 20, height: 20, lineHeight: '18px', padding: 0, borderRadius: 5,
+      border: '0.5px solid rgba(0,0,0,.15)', background: 'rgba(255,255,255,.7)',
+      cursor: 'pointer', fontSize: 11, color: '#29261b'
+    };
+    const thumbBox = {
+      width: 30, height: 22, flexShrink: 0, borderRadius: 3, overflow: 'hidden',
+      background: 'rgba(0,0,0,.07)', objectFit: 'cover', display: 'block'
+    };
+    const field = {
+      width: '100%', boxSizing: 'border-box', margin: '2px 0',
+      padding: '3px 6px', borderRadius: 4, fontSize: 11,
+      border: '0.5px solid rgba(0,0,0,.18)', background: 'rgba(255,255,255,.75)',
+      color: '#29261b', fontFamily: 'inherit', resize: 'vertical'
+    };
+    /* per-image description overrides (Tweaks) fall back to inline project data */
+    const dataMap = (t.postersDescData && typeof t.postersDescData === 'object') ? t.postersDescData : {};
+    const imgBySrc = {}; proj.postersImages.forEach((im) => { imgBySrc[im.src] = im; });
+    const titleFor = (s) => (dataMap[s] && dataMap[s].title != null) ? dataMap[s].title : ((imgBySrc[s] || {}).title || '');
+    const bodyFor  = (s) => (dataMap[s] && dataMap[s].body  != null) ? dataMap[s].body  : ((imgBySrc[s] || {}).body  || '');
+    const setDesc = (s, fld, val) => {
+      const next = Object.assign({}, dataMap);
+      next[s] = Object.assign({ title: titleFor(s), body: bodyFor(s) }, next[s]);
+      next[s][fld] = val;
+      setTweak('postersDescData', next);
+    };
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {order.map((src, i) => {
+          const url = 'assets/' + proj.id + '/' + src;
+          const isOpen = !!openDesc[src];
+          const hasDesc = !!(titleFor(src) || bodyFor(src));
+          return (
+          <div key={src} style={{ display: 'flex', flexDirection: 'column' }}>
+          <div className="twk-row twk-row-h" style={{ padding: '1px 0', gap: 6 }}>
+            <img style={thumbBox} src={url} alt="" />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                           color: 'rgba(41,38,27,.72)', flex: 1 }}>{i + 1}. {niceName(src)}</span>
+            <span style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+              <button style={{ ...btn, color: hasDesc ? '#2a6fdb' : '#29261b' }}
+                      onClick={() => setOpenDesc((o) => Object.assign({}, o, { [src]: !o[src] }))}
+                      aria-label="Edit description" title="Edit description">✎</button>
+              <button style={{ ...btn, opacity: i === 0 ? 0.35 : 1 }}
+                      onClick={() => move(i, -1)} aria-label="Move up">↑</button>
+              <button style={{ ...btn, opacity: i === order.length - 1 ? 0.35 : 1 }}
+                      onClick={() => move(i, 1)} aria-label="Move down">↓</button>
+            </span>
+          </div>
+          {isOpen && (
+            <div style={{ paddingLeft: 36, paddingBottom: 4 }}>
+              <input style={field} type="text" placeholder="Title"
+                     value={titleFor(src)}
+                     onChange={(e) => setDesc(src, 'title', e.target.value)} />
+              <textarea style={{ ...field, minHeight: 44 }} placeholder="Body"
+                     value={bodyFor(src)}
+                     onChange={(e) => setDesc(src, 'body', e.target.value)} />
+            </div>
+          )}
+          </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   /* ── Single typography section (size/weight/leading/tracking) ───────── */
   function TypeBlock({ label, prefix, t, setTweak, defaultOpen = false }) {
     return (
@@ -1009,6 +1097,31 @@
                        onChange={(v) => setTweak('pgThumbH', v)} />
           <TweakSection label="Clip order" sub collapsible defaultOpen={false}>
             <PlaygroundOrder t={t} setTweak={setTweak} />
+          </TweakSection>
+        </TweakSection>
+
+        {/* ── POSTERS GALLERY ─────────────────────────────────────────── */}
+        <TweakSection label="Posters gallery" top collapsible defaultOpen={false}>
+          <TweakSlider label="Columns"           value={t.postersCols != null ? t.postersCols : 3}
+                       min={1} max={6} step={1}
+                       onChange={(v) => setTweak('postersCols', v)} />
+          <TweakSlider label="Height conformity" value={t.postersHConf != null ? t.postersHConf : 1}
+                       min={0} max={1} step={0.05}
+                       onChange={(v) => setTweak('postersHConf', v)} />
+          <TweakSlider label="Width conformity"  value={t.postersWConf != null ? t.postersWConf : 0}
+                       min={0} max={1} step={0.05}
+                       onChange={(v) => setTweak('postersWConf', v)} />
+          <TweakSlider label="Hover scale"       value={t.postersHoverScale != null ? t.postersHoverScale : 1.04}
+                       min={1.00} max={1.30} step={0.01}
+                       onChange={(v) => setTweak('postersHoverScale', v)} />
+          <TweakSlider label="Gap X"             value={t.postersHGap != null ? t.postersHGap : 24}
+                       min={0} max={120} step={1} unit="px"
+                       onChange={(v) => setTweak('postersHGap', v)} />
+          <TweakSlider label="Gap Y"             value={t.postersVGap != null ? t.postersVGap : 24}
+                       min={0} max={120} step={1} unit="px"
+                       onChange={(v) => setTweak('postersVGap', v)} />
+          <TweakSection label="Image order" sub collapsible defaultOpen={false}>
+            <PostersOrder t={t} setTweak={setTweak} />
           </TweakSection>
         </TweakSection>
 

@@ -485,6 +485,7 @@
     }
 
     vp.addEventListener('mousedown', function (e) {
+      if (e.button !== 0) return;   /* left-click only — ignore right/middle */
       e.preventDefault();
       onDown(e.clientX, e.clientY, e.target);
     });

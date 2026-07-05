@@ -499,6 +499,16 @@
   #home-view.blend-invert.title-noblend-hover .lp-title-stack:has(.lp-title-row.is-centered:hover) .lp-title-row {
     color: var(--title-color, var(--text, #111));
   }
+  /* In this mode the mix-blend switch on hover is INSTANT (blend-mode can't
+     animate). If the colour cross-faded at the same time it would pass through
+     its near-white inverse value (--inv-text) while the blend is briefly off →
+     a white flash on hover in AND out. So drop the colour transition here and
+     let it SNAP in lock-step with the blend switch; the scale keeps its smooth
+     transition. (Other modes — blend kept on hover, or no blend at all — cross-
+     fade under a constant blend state, so they stay smooth and are untouched.) */
+  #home-view.blend-invert.title-noblend-hover .lp-title-inner {
+    transition: transform 0.16s ease;
+  }
 
   /* ── PER-PORTION INVERT OVER IMAGES (mini description + regular filter labels) ──
      Only the part of the text that overlaps a thumbnail inverts; the rest stays
@@ -789,6 +799,27 @@
   .proj-row-video .proj-video { width: 100%; height: 100%; }
   .proj-row-localvideo .proj-localvideo { width: 100%; }
   .proj-row.proj-row-center { justify-content: center; }
+
+  /* ── POSTERS GALLERY ── static multi-column justified grid. Row structure +
+     per-tile box sizing are computed in js/posters-gallery.js; the image fills
+     its box with object-fit:contain (whitespace invisible on white). Tiles
+     scale on hover and open the shared image lightbox on click. */
+  .posters-gallery { width: 100%; }
+  .posters-row { display: flex; align-items: flex-start; }
+  .posters-row:last-child { margin-bottom: 0 !important; }
+  .posters-tile {
+    position: relative; flex: 0 0 auto; min-width: 0; overflow: visible;
+  }
+  .posters-tile img {
+    display: block; width: 100%; height: 100%;
+    object-fit: contain; object-position: center;
+    cursor: zoom-in;
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+  }
+  .posters-tile:hover { z-index: 2; }
+  .posters-tile:hover img { transform: scale(var(--posters-hover-scale, 1.04)); }
+  @media (hover: none) { .posters-tile:hover img { transform: none; } }
 
   /* hscroll: full-width horizontal gallery with edge arrows */
   .proj-hscroll { grid-column: 1 / -1; position: relative; }
@@ -1504,6 +1535,10 @@
   /* freeze page scroll while an image is expanded */
   body.lightbox-open { overflow: hidden; }
 
+  /* discourage casual saving of imagery site-wide: block image/video dragging
+     and the iOS long-press callout (right-click menu itself is blocked in JS). */
+  img, video { -webkit-user-drag: none; -webkit-touch-callout: none; user-select: none; }
+
   /* ── VIDEO LIGHTBOX ── enlarged embed in a centered overlay (custom enlarge
      button; works where native fullscreen is blocked, e.g. sandboxed iframes). */
   .video-lightbox {
@@ -2170,6 +2205,17 @@
     window.PG_CONFORMITY         = (t.pgConformity != null ? t.pgConformity : 0.62);
     window.PG_SCROLL_MODE        = (t.pgScrollMode === 'horizontal' ? 'horizontal' : 'free');
     window.PG_ORDER              = (Array.isArray(t.pgOrder) ? t.pgOrder : []);
+    /* posters gallery (static grid) — see js/posters-gallery.js */
+    window.POSTERS_COLS          = (t.postersCols  != null ? t.postersCols  : 3);
+    window.POSTERS_HCONF         = (t.postersHConf != null ? t.postersHConf : 1);
+    window.POSTERS_WCONF         = (t.postersWConf != null ? t.postersWConf : 0);
+    window.POSTERS_HGAP          = (t.postersHGap  != null ? t.postersHGap  : 24);
+    window.POSTERS_VGAP          = (t.postersVGap  != null ? t.postersVGap  : 24);
+    window.POSTERS_ORDER         = (Array.isArray(t.postersOrder) ? t.postersOrder : []);
+    window.POSTERS_DESC_DATA     = (t.postersDescData && typeof t.postersDescData === 'object') ? t.postersDescData : {};
+    r.setProperty('--posters-hover-scale', (t.postersHoverScale != null ? t.postersHoverScale : 1.04));
+    /* gaps / conformity only need a cheap re-size (no DOM rewrite) — do it live */
+    if (window.PostersGallery && window.PostersGallery.relayout) window.PostersGallery.relayout();
     window.LIST_SCROLL_SPEED     = (t.listScrollSpeed != null ? t.listScrollSpeed : 4);
     window.LIST_SCROLL_SMOOTHING  = (t.listScrollSmoothing != null ? t.listScrollSmoothing : 0.9);
     window.LIST_CONFORMITY       = (t.listConformity  != null ? t.listConformity  : 1);
@@ -2554,7 +2600,8 @@
                           'listSpacing','listMaxThumbH','listColumnY','listConformity','listInfinite','leftW','projectOrder','projectHidden'];
     var galLayoutKeys  = ['galColumns','galThumbSize','galConform','galAspect','galAspectFlip','galColGap','galRowGap','galX','galY','leftW','projectOrder','projectHidden'];
     var pgLayoutKeys   = ['pgRows','pgHGap','pgVGap','pgThumbH','pgConformity','pgScrollMode','pgOrder','leftW'];
-    var changedList = !__lastApplied, changedPg = !__lastApplied, changedGal = !__lastApplied;
+    var postersLayoutKeys = ['postersCols','postersOrder','leftW'];
+    var changedList = !__lastApplied, changedPg = !__lastApplied, changedGal = !__lastApplied, changedPosters = !__lastApplied;
     if (__lastApplied) {
       for (var i = 0; i < listLayoutKeys.length; i++)
         if (__lastApplied[listLayoutKeys[i]] !== t[listLayoutKeys[i]]) { changedList = true; break; }
@@ -2562,18 +2609,21 @@
         if (__lastApplied[galLayoutKeys[gi]] !== t[galLayoutKeys[gi]]) { changedGal = true; break; }
       for (var j = 0; j < pgLayoutKeys.length; j++)
         if (__lastApplied[pgLayoutKeys[j]] !== t[pgLayoutKeys[j]]) { changedPg = true; break; }
+      for (var pk = 0; pk < postersLayoutKeys.length; pk++)
+        if (__lastApplied[postersLayoutKeys[pk]] !== t[postersLayoutKeys[pk]]) { changedPosters = true; break; }
     }
     __lastApplied = Object.assign({}, t);
     if (changedList) __pendingList = true;
     if (changedGal)  __pendingGal  = true;
     if (changedPg)   __pendingPg   = true;
+    if (changedPosters) __pendingPosters = true;
     /* The rebuild re-creates the gallery DOM — the only expensive op. Defer it
        to mouse/key RELEASE so dragging a layout slider (spacing, conformity,
        column width…) never rebuilds mid-drag and never "sticks". CSS-var-only
        tweaks (colors, type, marker, pills, positions) don't set these flags and
        update live. A long fallback timer covers programmatic edits with no
        release event. */
-    if (__pendingList || __pendingPg || __pendingGal) scheduleRebuildOnRelease();
+    if (__pendingList || __pendingPg || __pendingGal || __pendingPosters) scheduleRebuildOnRelease();
     /* logo re-fits after type / margin / panel-width changes */
     if (typeof fitLogo === 'function') requestAnimationFrame(fitLogo);
   }
@@ -2581,6 +2631,7 @@
   var __pendingList = false;
   var __pendingGal  = false;
   var __pendingPg   = false;
+  var __pendingPosters = false;
   var __rebuildTimer = null;
   var __rebuildBound = false;
 
@@ -2606,6 +2657,12 @@
       __pendingPg = false;
       if (window.Playground && window.Playground.rebuild) {
         window.Playground.rebuild();
+      }
+    }
+    if (__pendingPosters) {
+      __pendingPosters = false;
+      if (window.PostersGallery && window.PostersGallery.rebuild) {
+        window.PostersGallery.rebuild();
       }
     }
   }
@@ -3290,11 +3347,19 @@
       thumbRatio: 1.62,
       video:      '',
       images:     [],
-      content: [
-        { type: 'row', images: ['Gibberish-web.jpg', 'FlowerHeartGold-Web.jpg', 'HadasBau-02-web.jpg'] },
-        { type: 'row', images: ['Lady-Web.jpg', 'Mr-Web.jpg', 'Old-Web.jpg'] },
-        { type: 'row', images: ['ex-web.jpg', 'Escape-b-web.jpg', 'Aquarium-FixedColors-web.jpg'] },
-        { type: 'row', images: ['all-web.jpg', 'Bee-Full-b-web.jpg', 'pink-web.jpg'] }
+      postersImages: [
+        { src: 'Gibberish-web.jpg' },
+        { src: 'FlowerHeartGold-Web.jpg' },
+        { src: 'HadasBau-02-web.jpg' },
+        { src: 'Lady-Web.jpg' },
+        { src: 'Mr-Web.jpg' },
+        { src: 'Old-Web.jpg' },
+        { src: 'ex-web.jpg' },
+        { src: 'Escape-b-web.jpg' },
+        { src: 'Aquarium-FixedColors-web.jpg' },
+        { src: 'all-web.jpg' },
+        { src: 'Bee-Full-b-web.jpg' },
+        { src: 'pink-web.jpg' }
       ],
       hidden:     false
     },
@@ -3410,6 +3475,7 @@
 <script src="js/gallery-display.js"></script>
 <script src="js/adaptive-invert.js"></script>
 <script src="js/playground-gallery.js"></script>
+<script src="js/posters-gallery.js"></script>
 <script src="js/portfolio.js"></script>
 
 <!-- Tweaks panel — React + Babel are only used here. Toggle from toolbar. -->

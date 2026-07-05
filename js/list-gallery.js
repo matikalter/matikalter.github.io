@@ -832,6 +832,7 @@
 
     /* mouse drag */
     stage.addEventListener('mousedown', function (e) {
+      if (e.button !== 0) return;   /* left-click only — ignore right/middle */
       e.preventDefault();
       onDown(e.clientY, e.target);
     });

@@ -290,7 +290,7 @@
       +   '</div>'
       +   '<div class="lp-desc-wrap">'
       +     '<div class="lp-proj-desc">' + (p.desc || 'Project description coming soon.') + '</div>'
-      +     (p.playgroundImages && p.playgroundImages.length
+      +     (((p.playgroundImages && p.playgroundImages.length) || (p.postersImages && p.postersImages.length))
             ? '<div class="pg-desc" id="pg-desc" aria-hidden="true">'
               + '<div class="proj-text-title" id="pg-desc-title"></div>'
               + '<div class="proj-text-body" id="pg-desc-body"></div>'
@@ -509,20 +509,12 @@
      `p.images` entry) + remaining `p.images` as one-column blocks. ───────── */
   /* the iframe + enlarge button shared by the video block and row-video items */
   function videoInnerHTML(src, ratio) {
-    /* YouTube embeds need enablejsapi=1 so the enlarge flow can read/sync
-       time + mute + volume via the widget postMessage protocol */
-    if (isYouTubeSrc(src)) src = setUrlParam(src, 'enablejsapi', 1);
+    /* Embeds (YouTube + Vimeo) keep their OWN native fullscreen control, so we
+       no longer add a custom enlarge button here. (Self-hosted localvideo still
+       gets its click-to-enlarge lightbox, handled separately.) */
     return '<iframe src="' + src + '" frameborder="0" '
          +   'allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" '
-         +   'allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe>'
-         +   '<button class="proj-video-zoom" type="button" aria-label="Enlarge video" '
-         +   'data-vsrc="' + src.replace(/"/g, '&quot;') + '" '
-         +   'data-vratio="' + (ratio || '16/9') + '">'
-         +     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
-         +     'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-         +       '<path d="M8 3H3v5M16 3h5v5M16 21h5v-5M8 21H3v-5"></path>'
-         +     '</svg>'
-         +   '</button>';
+         +   'allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe>';
   }
 
   function blockHTML(b, pid) {
@@ -937,7 +929,7 @@
     if (!lb) return;
     /* open on content-image click */
     document.addEventListener('click', function (e) {
-      var z = e.target.closest && e.target.closest('.proj-block img[data-zoom]');
+      var z = e.target.closest && e.target.closest('.proj-block img[data-zoom], .posters-tile img[data-zoom]');
       if (z) { e.preventDefault(); openLightbox(z.src); }
       var vz = e.target.closest && e.target.closest('.proj-video-zoom');
       if (vz) {
@@ -1127,6 +1119,16 @@
     });
   }
 
+  /* posters gallery: static multi-column justified grid (no drag/auto-scroll).
+     Each tile scales on hover + surfaces its own image description in the left
+     toolbar (like the playground clips); click enlarges via the image lightbox. */
+  function renderProjectPosters(p) {
+    var body = document.getElementById('proj-body');
+    body.innerHTML = '<div class="proj-standard"><div id="posters-mount" class="posters-gallery"></div></div>';
+    var mount = document.getElementById('posters-mount');
+    if (window.PostersGallery) window.PostersGallery.build(mount, p.postersImages, p.id);
+  }
+
   function renderProjectPlayground(p) {
     var body = document.getElementById('proj-body');
     /* viewport fills right side; the back-link is absolute-positioned above it */
@@ -1195,6 +1197,10 @@
     if (r.view !== 'project' && window.Playground) {
       window.Playground.unmount();
     }
+    /* likewise tear down the posters gallery (removes its resize listener) */
+    if (r.view !== 'project' && window.PostersGallery) {
+      window.PostersGallery.unmount();
+    }
 
     if (r.view === 'home') {
       setLeftHome();
@@ -1221,8 +1227,11 @@
       setView('project-view');
       if (window.ListGallery) window.ListGallery.destroy();
       if (window.GalleryDisplay) window.GalleryDisplay.destroy();
+      if (window.PostersGallery) window.PostersGallery.unmount();  /* clear any prior posters mount */
       if (p.playgroundImages && p.playgroundImages.length) {
         renderProjectPlayground(p);
+      } else if (p.postersImages && p.postersImages.length) {
+        renderProjectPosters(p);
       } else {
         renderProjectStandard(p);
       }
@@ -1297,6 +1306,10 @@
     }
     window.refreshDisplaySwitch();
   })();
+
+  /* disable right-click / long-press context menu site-wide so images + videos
+     can't be trivially saved (belt-and-braces with the CSS drag/callout guards) */
+  document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
   /* apply route from URL on first load (instant — no async) */
   initLightbox();
