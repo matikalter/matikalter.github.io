@@ -76,7 +76,10 @@ modern — imagery gets center stage, interface stays quiet.
   updateScrollMarkers() (down at scrollTop 0, up at bottom).
 - js/playground-gallery.js — draggable multi-row image gallery with
   click-to-expand fullscreen viewer; used for ANY project with a
-  `playgroundImages` array. Tiles scale with the window HEIGHT (thumbH / gaps /
+  `playgroundImages` array. Both the list AND playground galleries guard
+  their `mousedown` handler to `e.button === 0` (LEFT-click only) so a
+  right-click no longer opens a project / expands a clip (pairs with the
+  site-wide contextmenu block in portfolio.js). Tiles scale with the window HEIGHT (thumbH / gaps /
   pad × innerHeight / PG_REF_H) so they keep their relative height + vertical
   position as the window scales vertically; scaling the WIDTH only reveals more/
   fewer tiles (it does NOT change tile size). The expanded overlay is
@@ -111,9 +114,36 @@ modern — imagery gets center stage, interface stays quiet.
   14 decoders + 14 parallel downloads (like the GIFs that loaded instantly),
   not 59–95. The fullscreen overlay uses a real &lt;video&gt; (reads canvas
   data-src/data-ratio). Real aspect ratios auto-measured (pgRatioCache).
+- js/posters-gallery.js — STATIC multi-column justified grid (no drag / no
+  auto-scroll; the page scrolls normally). Used for ANY project with a
+  `postersImages` array (the Posters project). Row-major: images chunk into
+  rows of POSTERS_COLS columns; each tile is a box the image fits into
+  (object-fit:contain — whitespace invisible on white). Two conformity axes
+  (both 0..1): WIDTH conformity blends each tile's width between aspect-
+  proportional (0 = justified, widths ∝ ratio) and equal columns (1); HEIGHT
+  conformity blends each tile's height between its natural height (0) and the
+  row's tallest (1). Defaults hc=1/wc=0 reproduce the classic equal-height
+  justified rows. GAPS (POSTERS_HGAP/VGAP) shrink the space for images, so
+  bigger gaps → proportionally smaller images (no separate size control); the
+  images always fill the content width. A partial last row lays out at the
+  previous full row's height, natural widths, left-aligned (never stretched).
+  Tiles scale on hover (--posters-hover-scale) and open the shared image
+  lightbox on click (img[data-zoom]). Each image can have a `title` + `body`
+  shown in the LEFT TOOLBAR on hover, IN PLACE of the project description —
+  reusing the SAME #pg-desc overlay the playground uses (adds .pg-hidden to
+  .lp-proj-desc). Order + per-image descriptions come from Tweaks (see
+  Posters gallery), keyed by src; Tweak values are AUTHORITATIVE even when
+  empty, else fall back to inline title/body in postersImages. Real aspect
+  ratios auto-measured (window.__postersRatioCache). Relayout is cheap (no DOM
+  rewrite) so it runs live on tweak drags; a ResizeObserver on the mount +
+  a post-build double-rAF re-fit catch the width change when the vertical
+  scrollbar appears on cached loads (plain window 'resize' doesn't fire for
+  that). PostersGallery.{build, relayout, unmount, rebuild}.
 - js/portfolio.js — hash routing, left-panel rendering, title stack,
-  project-page content rendering (block grid), image lightbox, video
-  lightbox (enlarge embeds), and page-exit video teardown
+  project-page content rendering (block grid), image lightbox, and page-exit
+  video teardown. Also disables the site-wide right-click/context menu
+  (contextmenu preventDefault) so imagery can't be trivially saved (paired
+  with CSS -webkit-user-drag/-webkit-touch-callout guards on img/video).
 - js/adaptive-invert.js — PER-PORTION invert-over-images for the home
   overlay text that isn't the title (mini description + regular filter
   labels). Only the part of the text overlapping a DARK thumbnail inverts
@@ -366,6 +396,13 @@ omit = no button), hidden.
     (scrollY < 1) — otherwise the wheel scrolls the page vertically first.
   No `content` → falls back to video + images. Image files live in
   assets/<id>/.
+- Posters-style page: add `postersImages` [{src, title?, body?, ratio?}] to
+  render the STATIC justified grid (js/posters-gallery.js) instead of the
+  content-block grid. Order + per-image Title/Body descriptions are edited in
+  Tweaks → Posters gallery → Image order (stored as `postersOrder` filename
+  array + `postersDescData` keyed by src; both AUTHORITATIVE over inline
+  title/body, same rule as playground). Image files live in assets/<id>/.
+  Layout/behaviour controls live in the Posters gallery tweaks section.
 - Playground-style page: add `playgroundImages` [{src,ratio}] to swap
   in the draggable gallery layout instead. Clip ORDER is controlled from
   Tweaks → Playground gallery → Clip order (up/down + thumbnail per clip),
@@ -385,7 +422,7 @@ omit = no button), hidden.
   disabled). Descriptions are edited per clip in Tweaks → Playground gallery →
   Clip order (✎ toggle → Title + Body fields), stored in the `pgDescData`
   tweak keyed by clip src (window.PG_DESC_DATA); a field defined there is
-  AUTHORITATIVE even when empty (clearing it hides that line \u2014 does NOT fall
+  AUTHORITATIVE even when empty (clearing it hides that line — does NOT fall
   back to any inline title/body in the project data). Uses the Text Title (h5)
   + Text Body styles. Toolbar tweaks (Vid Description sub-dropdown): Show
   descriptions toggle (pgDescShow / PG_DESC_SHOW), Align (pgDescAlign), and Y
@@ -422,8 +459,7 @@ Right zone of the about view is a CSS grid: left column = bio (BIO_LONG,
 rendered as Heading 4 type; may contain <a> links — e.g. "Say hi!" →
 mailto), right column = the meta block (Education / Awards / Conferences,
 pinned TOP and aligned with the bio, section titles in Heading 3 type)
-above a Vimeo showreel (#about-reel-iframe) pinned to the BOTTOM. The reel reuses the project-page .proj-video markup
-(hover enlarge button + video lightbox) and is overscanned 1px to avoid a
+above a Vimeo showreel (#about-reel-iframe) pinned to the BOTTOM. The reel uses the project-page .proj-video markup (NO enlarge button — removed; it keeps Vimeo's native fullscreen) and is overscanned 1px to avoid a
 black hairline. Tweakable (About page section): Margin X / Margin Y
 (outer padding), Column split (the movable left|right divider = left zone
 width %), Bio max width and Education max width (0 = no cap). The meta
@@ -434,21 +470,16 @@ Click any content image → expands centered, blurred backdrop
 (backdrop-filter), page underneath inert, page scroll frozen
 (body.lightbox-open). Click outside / Esc closes. Size = Tweaks
 "Expanded image size". Images & video render with sharp corners. Embeds
-have their own video lightbox (enlarge button → centered iframe overlay,
-× / backdrop / Esc to close, playback stops on close). Self-hosted
+(YouTube + Vimeo) keep their OWN native fullscreen control — there is NO
+custom enlarge button on embeds anywhere (removed from videoInnerHTML AND
+the hardcoded about-page reel). Self-hosted
 localvideo clips reuse that overlay but the frame shrink-wraps the clip
 (.is-local — no fixed-ratio box, no × button) so the visible video bounds
 equal the clickable bounds; the enlarged clip autoplays muted+looping
-with no controls. Embeds carry full PLAYBACK SYNC across enlarge/close: the
-inline embed's time + mute + volume + play-state is read first, baked
-into the enlarged copy's URL (muted=/#t= for Vimeo, mute=/start= for
-YouTube) so it CONTINUES (never restarts) and keeps the user's mute/
-volume; on close that state is read back and handed to the inline embed.
-The lightbox iframe is REPLACED (fresh element) each open/close so a
-stale player can't drop the seek on a re-enlarge. Vimeo uses the Player
-API; YouTube uses the widget postMessage protocol (inline YT embeds get
-enablejsapi=1 + ytListen() on render). All sync helpers live in
-js/video-sync.js.
+with no controls. (Embeds no longer enlarge, so the old embed playback-sync
+plumbing across enlarge/close is dormant for embeds — the helpers in
+js/video-sync.js remain only for any future use; embeds now rely on their
+native fullscreen instead.)
 
 ## Page-exit video teardown
 Hiding a view with display:none does NOT stop its iframes (audio kept
@@ -525,7 +556,11 @@ titles smaller). Notable groupings:
   is independent of the per-frame translate; --title-hover-scale], Hover color
   [--title-hover-color; counter-inverted when invert is on so it reads true],
   and "Invert on hover" [titleHoverBlend; off → .title-noblend-hover drops the
-  blend on the hovered centered row via :has() so it shows its true colour]),
+  blend on the hovered centered row via :has() so it shows its true colour;
+  in that mode the mix-blend switch is INSTANT so the row's colour must SNAP
+  in lock-step — .lp-title-inner transitions transform ONLY (no colour cross-
+  fade) to avoid a white flicker passing through the near-white inverse value
+  on hover in/out; the scale still eases]),
   and an "Upper / lower titles" sub-dropdown (three blur tiers + three opacity
   tiers for the ±3 rows).
 - Filter buttons: Align (self), X position, Y from top, Direction
@@ -555,7 +590,7 @@ titles smaller). Notable groupings:
     width/position, Thumb
   align, Conformity, Spacing,
   Max thumb h, Column Y (\u00b1400px vertical offset of the whole column from the
-  central resting position \u2014 shifts the resting thumbs, the active-detection
+  central resting position — shifts the resting thumbs, the active-detection
   center, AND the center marker/connector line together via --list-column-y +
   LIST_COLUMN_Y; in listLayoutKeys so it rebuilds), Hover scale, an "Inactive" sub-dropdown (Opacity, Saturation,
   Blur [SEAMLESS, extends past the image edges — see list-gallery.js], Sharp
@@ -582,6 +617,14 @@ titles smaller). Notable groupings:
   Tweaks-panel section order: Project List, Project Thumbnail Display
   (List Display → Gallery Display → Switch button), Project titles,
   Center marker, Filter buttons.
+- Posters gallery (top-level section; controls the Posters-style static grid,
+  js/posters-gallery.js): Columns (default 3), Height conformity (0..1),
+  Width conformity (0..1), Hover scale, Gap X, Gap Y, and an "Image order"
+  sub-dropdown — per-image up/down reorder (postersOrder) + a ✎ toggle per
+  image opening Title + Body fields (postersDescData, keyed by src; shown in
+  the left toolbar on hover). Mirrors the playground Clip order UI. Layout
+  keys postersCols/postersOrder trigger a preserveScroll rebuild
+  (postersLayoutKeys); gaps/conformity/hover relayout live (no rebuild).
 
 Changes persist to the TWEAKS JSON block in index.html via the host
 (ASYNC disk write). A SYNC SAFETY NET also mirrors every change to
@@ -606,8 +649,8 @@ block.
 
 ## Safe-to-hand-edit (download / re-upload)
 Text inside the `projects` array (title, year, desc, tags, mini, thumb,
-video, content blocks, id), the bio strings (BIO_SHORT, BIO_SHORT_ALT,
+video, content blocks, postersImages [src/title/body], id), the bio strings (BIO_SHORT, BIO_SHORT_ALT,
 BIO_LONG), LOGO text, filterDefs labels, tagDefs labels, about-page
 text, a project's `play` URL. thumbRatio is optional (auto-measured).
-Edit the TWEAKS JSON carefully (valid JSON only). Don't touch the
-<style> CSS, script tags, or view structure.
+Edit the TWEAKS JSON carefully (valid JSON only). NOTE: newly-added tweak
+keys must be written into the TWEAKS JSON block to persist to disk/GitHub — the panel's on-disk save updates EXISTING keys; a key absent from the block lives only in the localStorage mirror (shows in Claude Design, not on GitHub). The Posters order/descriptions were baked into the block for this reason. Don't touch the &lt;style&gt; CSS, script tags, or view structure.
