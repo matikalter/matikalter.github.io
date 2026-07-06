@@ -1130,7 +1130,7 @@
   }
 
   const root = document.getElementById('tweaks-root');
-  if (root && window.ReactDOM && window.ReactDOM.createRoot) {
+  if (root && !window.__MOBILE__ && window.ReactDOM && window.ReactDOM.createRoot) {
     ReactDOM.createRoot(root).render(<App />);
   }
 })();

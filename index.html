@@ -7,6 +7,36 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500&display=swap" rel="stylesheet">
 <title>Mati Kalter</title>
+
+<!-- ── DEVICE DETECTION ──────────────────────────────────────────────────
+     Phones get the mobile experience (js/mobile-app.js). Tablets/iPad and
+     desktop get the existing responsive desktop site. Detection runs BEFORE
+     any body script so portfolio.js + the React tweaks panel can gate off on
+     mobile (window.__MOBILE__). Override per-load with ?device=mobile|desktop
+     (used by Mobile Preview.html); no localStorage write, so the param can't
+     bleed from the preview iframe into a real desktop tab. -->
+<script>
+  (function () {
+    var forced = null;
+    try { forced = new URLSearchParams(location.search).get('device'); } catch (e) {}
+    var mobile;
+    if (forced === 'mobile') mobile = true;
+    else if (forced === 'desktop' || forced === 'tablet') mobile = false;
+    else {
+      var ua = navigator.userAgent || '';
+      var coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+      var w = Math.min(window.innerWidth || 9999, (window.screen && window.screen.width) || 9999);
+      var isTablet = /iPad/.test(ua) || (/Android/.test(ua) && !/Mobile/.test(ua))
+                     || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1); /* iPadOS desktop UA */
+      var isPhone = (/iPhone|iPod/.test(ua) || (/Android/.test(ua) && /Mobile/.test(ua)) || (coarse && w < 820)) && !isTablet;
+      mobile = isPhone;
+    }
+    window.__MOBILE__ = mobile;
+    document.documentElement.classList.add(mobile ? 'is-mobile' : 'is-desktop');
+  })();
+</script>
+<link rel="stylesheet" href="css/mobile.css">
+
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -1665,7 +1695,7 @@
           </div>
           <div class="about-section">
             <div class="about-section-title">Awards</div>
-            <div class="about-item">Best Project, International Digital Media Competition <span>- TISFF, 2022</span></div>
+            <div class="about-item">Best Project, International Digital Media Comp <span>- TISFF, 2022</span></div>
             <div class="about-item">Sandberg Award <span>- Bezalel Academy of Arts and Design, 2021</span></div>
           </div>
           <div class="about-section">
@@ -1711,6 +1741,10 @@
   <button class="tb-toggle tb-minimize" id="tb-minimize" type="button" aria-label="Minimize toolbar">✕</button>
 </div>
 
+<!-- MOBILE APP — populated by js/mobile-app.js when window.__MOBILE__ is true.
+     Hidden on desktop (CSS in css/mobile.css). -->
+<div id="mobile-app"></div>
+
 <script>
   /* ===================================================================
      ★ EDITABLE SETTINGS — change values here, no code edits needed below.
@@ -1719,7 +1753,7 @@
   /* ── Bios & logo ── */
   var BIO_SHORT     = "I'm a visual designer working in games, animation, and 2D/3D art.";
   var BIO_SHORT_ALT = '';
-  var BIO_LONG      = "I shape characters, environments, and animated narratives - often through humor, stylistic play, and a light touch on complex subjects that invites personal interpretation.\n\nI've been an art director, 2D/3D artist, and tech artist for games, provided mentorship to students in game design, and created motion/graphic design for clients. Currently open to new projects and collaborations. <a href=\"mailto:mkalterr@gmail.com\">Say hi!</a>";
+  var BIO_LONG      = "I shape characters, environments, and animated stories - usually with humor, stylistic play, and a light touch on complex subjects.\n\nI've art directed and built 2D/3D art for games, mentored game design students, and created motion graphics for clients in tech, music, and design. Currently open to projects and collaborations in games and motion design. <a href=\"mailto:mkalterr@gmail.com\">Say hi!</a>";
 
   var LOGO = {
     idle:  { type: 'text', text: 'mati kalter', image: '', style: '' },
@@ -1760,13 +1794,13 @@
     "h1Weight": 500,
     "h1Leading": 1.4,
     "h1Tracking": -0.01,
-    "h3Size": 28,
+    "h3Size": 20,
     "h3Weight": 400,
-    "h3Leading": 1,
+    "h3Leading": 0.95,
     "h3Tracking": 0,
-    "h4Size": 22,
+    "h4Size": 20,
     "h4Weight": 400,
-    "h4Leading": 1.4,
+    "h4Leading": 1.5,
     "h4Tracking": 0,
     "h5Size": 22,
     "h5Weight": 400,
@@ -1794,7 +1828,7 @@
     "tagsTracking": 0,
     "labelsSize": 12,
     "labelsWeight": 400,
-    "labelsLeading": 1.4,
+    "labelsLeading": 1.3,
     "labelsTracking": 0,
     "filterSize": 16,
     "filterWeight": 400,
@@ -1914,22 +1948,86 @@
     "postersHConf": 1,
     "postersWConf": 0,
     "postersHoverScale": 1.04,
-    "postersHGap": 15,
-    "postersVGap": 15,
-    "postersOrder": ["Gibberish-web.jpg", "FlowerHeartGold-Web.jpg", "HadasBau-02-web.jpg", "ex-web.jpg", "Escape-b-web.jpg", "Aquarium-FixedColors-web.jpg", "Lady-Web.jpg", "Mr-Web.jpg", "Old-Web.jpg", "pink-web.jpg", "Bee-Full-b-web.jpg", "all-web.jpg"],
+    "postersHGap": 20,
+    "postersVGap": 20,
+    "postersOrder": [
+      "Gibberish-web.jpg",
+      "FlowerHeartGold-Web.jpg",
+      "HadasBau-02-web.jpg",
+      "ex-web.jpg",
+      "Escape-b-web.jpg",
+      "Aquarium-FixedColors-web.jpg",
+      "Lady-Web.jpg",
+      "Mr-Web.jpg",
+      "Old-Web.jpg",
+      "pink-web.jpg",
+      "Bee-Full-b-web.jpg",
+      "all-web.jpg",
+      "Digital-3-smallborder-web.jpg",
+      "Hold-On-web.jpg",
+      "5-b-web.jpg"
+    ],
     "postersDescData": {
-      "Gibberish-web.jpg": { "title": "Gibberish", "body": "" },
-      "FlowerHeartGold-Web.jpg": { "title": "The Golden Heart Flower", "body": "Alternative interpretation of a folk tale, about a son's sacrifice for his mother." },
-      "HadasBau-02-web.jpg": { "title": "Hadas Bau", "body": "Illustrated poster for Alef Alef Alef's new font release." },
-      "ex-web.jpg": { "title": "Deadline", "body": "" },
-      "Escape-b-web.jpg": { "title": "Escape", "body": "" },
-      "Aquarium-FixedColors-web.jpg": { "title": "The Jerusalem Aquarium", "body": "An alternative illustrated map for the Jerusalem Aquarium." },
-      "Lady-Web.jpg": { "title": "Lady Vengeance", "body": "Illustrated poster for  Park Chan-wook's The Vengeance Trilogy." },
-      "Mr-Web.jpg": { "title": "Sympathy for Mr. Vengeance", "body": "Illustrated poster for  Park Chan-wook's The Vengeance Trilogy." },
-      "Old-Web.jpg": { "title": "Old Boy", "body": "Illustrated poster for  Park Chan-wook's The Vengeance Trilogy." },
-      "pink-web.jpg": { "title": "Kind of Blue", "body": "Alternative illustrated album cover for Miles Davis' Kind of Blue." },
-      "Bee-Full-b-web.jpg": { "title": "The Sting", "body": "A diptych comic portraying a fateful insect encounter and its ensuing horror. Read from right to left." },
-      "all-web.jpg": { "title": "LVE TO LRN", "body": "Illustrated textbook covers for various subjects: Biology, Math, Language, and History." }
+      "Gibberish-web.jpg": {
+        "title": "Gibberish",
+        "body": ""
+      },
+      "FlowerHeartGold-Web.jpg": {
+        "title": "The Golden Heart Flower",
+        "body": "Alternative interpretation of a folk tale, about a son's sacrifice for his mother."
+      },
+      "HadasBau-02-web.jpg": {
+        "title": "Hadas Bau",
+        "body": "Illustrated poster for a font release by Alef Alef Alef studio."
+      },
+      "ex-web.jpg": {
+        "title": "Deadline",
+        "body": ""
+      },
+      "Escape-b-web.jpg": {
+        "title": "Escape",
+        "body": ""
+      },
+      "Aquarium-FixedColors-web.jpg": {
+        "title": "The Jerusalem Aquarium",
+        "body": "An alternative illustrated map for the Jerusalem Aquarium."
+      },
+      "Lady-Web.jpg": {
+        "title": "Lady Vengeance",
+        "body": "Illustrated poster for  Park Chan-wook's The Vengeance Trilogy."
+      },
+      "Mr-Web.jpg": {
+        "title": "Sympathy for Mr. Vengeance",
+        "body": "Illustrated poster for  Park Chan-wook's The Vengeance Trilogy."
+      },
+      "Old-Web.jpg": {
+        "title": "Old Boy",
+        "body": "Illustrated poster for  Park Chan-wook's The Vengeance Trilogy."
+      },
+      "pink-web.jpg": {
+        "title": "Kind of Blue",
+        "body": "Alternative illustrated album cover for Miles Davis' Kind of Blue."
+      },
+      "Bee-Full-b-web.jpg": {
+        "title": "The Sting",
+        "body": "A diptych comic portraying a fateful insect encounter and its ensuing horror. Read from right to left."
+      },
+      "all-web.jpg": {
+        "title": "LVE TO LRN",
+        "body": "Illustrated textbook covers for various subjects: Biology, Math, Language, and History."
+      },
+      "Digital-3-smallborder-web.jpg": {
+        "title": "Riding Hood",
+        "body": "An old interpretation of Red Riding Hood as the solar cycle: night swallows the sun at dusk, while day slays night and saves the sun by dawn."
+      },
+      "Hold-On-web.jpg": {
+        "title": "Hold On",
+        "body": ""
+      },
+      "5-b-web.jpg": {
+        "title": "German Clap",
+        "body": "Cover art for Modeselektor's single German Clap."
+      }
     },
     "pgDescShow": true,
     "pgDescAlign": "left",
@@ -2153,7 +2251,28 @@
     "tbtoggleHovStyle": "boxed",
     "tbtoggleHovOutline": "#8089ef",
     "tbtoggleHovText": "#8089ef",
-    "tbtoggleHovFill": "#00000000"
+    "tbtoggleHovFill": "#00000000",
+    "mLogoSize": 30,
+    "mLogoAlign": "center",
+    "mFeedMode": "above",
+    "mFeedGap": 30,
+    "mTitleSize": 30,
+    "mProjTitleSize": 40,
+    "mMiniSize": 15,
+    "mTagsSize": 12,
+    "mHoldBlur": 10,
+    "mHoldOpacity": 0.5,
+    "mHoldSaturation": 1,
+    "mHoldTextY": 50,
+    "mHoldAlign": "center",
+    "mLabelAlign": "left",
+    "mFilterSize": 16,
+    "mFilterAlign": "center",
+    "mFilterGap": 1,
+    "mLogoColor": "#8089ef",
+    "mLogoTapColor": "#111111",
+    "mDivShow": true,
+    "mDivSpace": 33
   }/*EDITMODE-END*/;
 
   /* Apply current tweak values to CSS variables + JS globals + rebuild any
@@ -3078,14 +3197,36 @@
       id:         'imprint',
       dark:       true,
       title:      'Imprint',
-      year:       '2023',
-      tags:       ['games', 'solo-dev', 'art-direction', 'tech-art', '3d'],
-      mini:       'Atmospheric Narrative Experience',
-      desc:       '',
+      year:       '2025',
+      tags:       ['games', 'solo-dev', 'art-direction', 'tech-art', 'game-design', '3d'],
+      mini:       'Abstract Narrative Explorer',
+      desc:       'Imprint is an abstract narrative game about the longing to belong. Moving through liminal, symbolic environments, the player uncovers echoes of forgotten moments and traces of those who came before - a reflection on cultural isolation, integration, and what we leave behind for others.<br><br>Originally solo-developed as my master\'s thesis at The Royal Danish Academy. It is now a work in progress.',
       thumb:      'imprint-thumbnail.jpg',
       thumbRatio: 1.777,
       video:      '',
       images:     [],
+      content: [
+        { type: 'video', src: 'https://www.youtube-nocookie.com/embed/9XL_Y7d7E_g?start=2&autoplay=1&mute=1&loop=1&playlist=9XL_Y7d7E_g&controls=1&modestbranding=1&rel=0&playsinline=1&fs=1' },
+        { type: 'row', images: ['Image Sequence_010_0000.jpg', 'Image Sequence_018_0000.jpg'] },
+        { type: 'row', images: ['Image Sequence_098_0000.jpg', 'Image Sequence_071_0000.jpg'] },
+        { type: 'row', images: ['Image Sequence_076_0000.jpg', 't34t3.jpg'] },
+        { type: 'divider' },
+        { type: 'text', full: true, title: 'Experience Mapping', body: 'Diagrams and storyboards map the game\'s narrative structure and emotional arc - where tension builds, where the pace softens, and how player agency shifts over time. Color and composition reinforce these beats, guiding the emotional journey.' },
+        { type: 'image', src: 'EV-Diagram-2.jpg', full: true },
+        { type: 'row', images: ['Storyboard_01.png', 'Storyboard_03.png', 'Storyboard_04.png', 'Storyboard_05.png'] },
+        { type: 'row', images: ['Storyboard_06.png', 'Storyboard_08.png', 'Storyboard_11.png', 'Storyboard_12.png'] },
+        { type: 'divider' },
+        { type: 'text', title: 'Character Design', body: 'Stylized characters were built from primitive shapes with flexible proportions. Early 2D concept explorations guided later 3D modelling in Blender and a grainy surface texture achieved through shaders, custom lighting, and procedural noise.' },
+        { type: 'image', src: 'Sprites-3.jpg' },
+        { type: 'row', images: [{ src: 'CharactersMeshWhite.jpg', w: 47, valign: 'center' }, { src: 'CharacterLineup.jpg', w: 53 }] },
+        { type: 'image', src: 'NoiseShaderExplanationWithCharacer.jpg', full: true },
+        { type: 'image', src: 'imprint-thumbnail.jpg', full: true },
+        { type: 'divider' },
+        { type: 'text', title: 'Form Follows Feeling', body: 'The game opens with limited agency and monotonous suspense, before meaningful choices emerge and create space for reflection on themes of isolation and integration. Mechanics were chosen for clear affordances, feedback, and emotional resonance, while shifting spaces, scales, and camera angles - from distant wide shots to intimate over-the-shoulder views - mirror a cyclical tension between individual and collective identity.' },
+        { type: 'image', src: 'ScreenshotExplainer-01.jpg' },
+        { type: 'image', src: 'ScenesMechanicsCompareDiagram.jpg', full: true },
+        { type: 'image', src: 'NarrativeScaleDiagramBlack-web.jpg', full: true }
+      ],
       hidden:     false
     },
 
@@ -3276,8 +3417,8 @@
       dark:       true,
       title:      'The Last Question',
       year:       '2019',
-      tags:       ['games', 'visual-design', '3d'],
-      mini:       'Speculative Tower Builder Concept Art',
+      tags:       ['games', 'visual-design', 'concept-art', '3d'],
+      mini:       'Speculative Tower Builder Concept',
       desc:       'Concept art for a speculative tower builder game inspired by Isaac Asimov\'s short story \'The Last Question\' - a tale of mankind\'s entropic expansion throughout the universe - depicted through various stages of mechanical, organic, and abstract growth.',
       thumb:      'the-last-question-thumbnail.jpg',
       thumbRatio: 0.75,
@@ -3304,7 +3445,7 @@
       title:      'Matilena',
       year:       '2018',
       tags:       ['games', 'game-design', 'visual-design', '2d'],
-      mini:       '2-Player Minimalist Tennis Board Game',
+      mini:       '2-Player Minimalist Board Game',
       desc:       'A board game inspired by Tennis: two players compete to control the court by balancing luck with card-based resources - attack, defence, and agility. A collaboration with Elena Ivanov.',
       thumb:      '9c-web.jpg',
       thumbRatio: 1.5,
@@ -3375,7 +3516,10 @@
         { src: 'Aquarium-FixedColors-web.jpg' },
         { src: 'all-web.jpg' },
         { src: 'Bee-Full-b-web.jpg' },
-        { src: 'pink-web.jpg' }
+        { src: 'pink-web.jpg' },
+        { src: 'Digital-3-smallborder-web.jpg' },
+        { src: 'Hold-On-web.jpg' },
+        { src: '5-b-web.jpg' }
       ],
       hidden:     false
     },
@@ -3493,6 +3637,7 @@
 <script src="js/playground-gallery.js"></script>
 <script src="js/posters-gallery.js"></script>
 <script src="js/portfolio.js"></script>
+<script src="js/mobile-app.js"></script>
 
 <!-- Tweaks panel — React + Babel are only used here. Toggle from toolbar. -->
 <div id="tweaks-root"></div>

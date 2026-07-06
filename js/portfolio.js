@@ -13,6 +13,10 @@
 (function () {
   'use strict';
 
+  /* On phones the mobile app (js/mobile-app.js) owns everything — skip the
+     entire desktop portfolio so the two don't fight over routing/DOM. */
+  if (window.__MOBILE__) return;
+
   /* ── filter state ── */
   window.activeFilters = { all: true };
 
@@ -611,9 +615,19 @@
            is unchanged so the row layout/widths stay put. */
         var scl = (im && typeof im === 'object' && im.scale) ? im.scale : null;
         var aln = (im && typeof im === 'object' && im.align) ? (' align-' + im.align) : '';
+        /* optional per-item `w`: FIXES the item's flex-grow to that value so its
+           width is a fixed proportion of the row (e.g. w:40 vs w:60 → 40%/60%),
+           regardless of aspect. Marked data-fixedw so measureProjRows leaves it. */
+        var fw = (im && typeof im === 'object' && im.w) ? im.w : null;
+        var valign = (im && typeof im === 'object' && im.valign) ? im.valign : null;
         var itCls = 'proj-row-item' + (scl ? (' proj-row-scaled' + aln) : '');
-        var itSt  = scl ? ' style="--item-scale:' + scl + '"' : '';
-        return '<div class="' + itCls + '"' + itSt + '>'
+        var styleBits = [];
+        if (scl) styleBits.push('--item-scale:' + scl);
+        if (fw)  styleBits.push('flex-grow:' + fw);
+        if (valign) styleBits.push('align-self:' + valign);   /* vertical align within the row */
+        var itSt  = styleBits.length ? ' style="' + styleBits.join(';') + '"' : '';
+        var fwAttr = fw ? ' data-fixedw="1"' : '';
+        return '<div class="' + itCls + '"' + itSt + fwAttr + '>'
              +   '<img src="assets/' + pid + '/' + encodeURIComponent(src) + '" '
              +   'alt="" loading="lazy" data-zoom="1" data-rowimg="1">'
              + '</div>';
@@ -1096,6 +1110,7 @@
   function measureProjRows(container) {
     var imgs = container.querySelectorAll('.proj-row-item img[data-rowimg]');
     Array.prototype.forEach.call(imgs, function (img) {
+      if (img.parentNode && img.parentNode.hasAttribute('data-fixedw')) return; /* fixed-width item: keep its flex-grow */
       function set() {
         if (img.naturalWidth && img.naturalHeight) {
           img.parentNode.style.flexGrow = (img.naturalWidth / img.naturalHeight).toFixed(4);

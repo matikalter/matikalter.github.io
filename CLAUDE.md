@@ -188,7 +188,100 @@ modern — imagery gets center stage, interface stays quiet.
   at 50) exposed as a `history` handle the panel header wires to ↶/↷ buttons
   + ⌘Z / ⇧⌘Z (Ctrl on Windows); undo/redo writes flow through both the LS
   mirror and the host disk write so an undone value won't resurrect on refresh.
+- js/mobile-app.js — MOBILE renderer (phones only; see "## Mobile
+  version"). Self-contained: own hash routing, fixed logo, home feed (two
+  label modes), project pages, about, simplified playground/posters, and a
+  vanilla mobile Tweaks panel. Reads the SAME shared data globals as desktop
+  (projects / tagDefs / filterDefs / BIO_LONG / LOGO). Runs ONLY when
+  window.__MOBILE__ is true; desktop portfolio.js + the React tweaks panel
+  gate OFF in that mode.
+- css/mobile.css — mobile stylesheet (activated by <html>.is-mobile). All
+  --m-* vars are set by mobile-app.js from the m* tweak keys; colours / box /
+  leading / tracking reuse the shared desktop CSS vars.
+- Mobile Preview.html — preview HARNESS (review only; NOT deployed). Shows
+  index.html?device=mobile&embedded=1 inside portrait + landscape phone
+  frames on a gray backdrop; owns the mobile Tweaks panel (in the gray
+  margin) and relays the host Tweaks protocol + live edits down to the
+  phone frames.
 - assets/<project-id>/<filename> — project images
+
+## Mobile version (phones only)
+Phones get a SEPARATE, more minimal experience; iPad / tablets + desktop keep
+the existing responsive desktop site. Still ONE deployable index.html.
+
+DETECTION — inline <head> script in index.html, runs before any body script:
+sets window.__MOBILE__ + <html>.is-mobile from UA + pointer:coarse + width,
+treating iPad / Android-tablet as DESKTOP. Override per-load with
+?device=mobile|desktop (NO localStorage write, so it can't bleed from the
+preview iframe into a real desktop tab). On mobile, css/mobile.css hides
+.site and shows #mobile-app; portfolio.js's IIFE early-returns and
+tweaks-app.jsx skips mounting — mobile-app.js owns everything.
+
+MOBILE-APP (js/mobile-app.js) — independent layer, shares DATA not code:
+- Fixed LOGO overlay on all pages (TRANSPARENT — just the text, overlays
+  content on scroll), tap → home. Tweaks: size (14–72), align, idle colour,
+  tap colour (curated swatches). Clears the notch: padding-top =
+  max(--m-safe-top, env(safe-area-inset-top)); --m-safe-top is 30px portrait
+  / 6px landscape when EMBEDDED in the harness (fakes the inset), 0 on a real
+  device (uses env()). positionView() sets the scroll view's top padding =
+  the live logo-bar height so content sits just under it (re-runs on resize).
+- HOME: single vertical thumbnail feed (no list/gallery toggle). Social icons
+  + about row at the top (scrolls away; NO hero image, NO bio). FILTER row
+  below it (window.filterDefs), single-select, black default / --highlight on
+  active+hover. Filter SPACING is a 0..1 SPREAD computed against the row's OWN
+  width (layoutFilters): 0 = bunched (positioned by align), 1 = spread edge-
+  to-edge flush to the margins; adapts to portrait/landscape/device, re-lays
+  out on resize + font-size change. Two LABEL modes (Tweak mFeedMode, default
+  'above'/B):
+    A 'hold' — title/mini/tags reveal on press-and-hold over the thumb
+      (pointer tap-vs-hold: hold shows labels + dims/blurs the image, tap
+      opens). Hold tweaks: blur / opacity / saturation + text Y + align.
+    B 'above' — labels stacked ABOVE each thumbnail; tap opens.
+  Feed thumbnails load EAGERLY (no loading=lazy — the lazy IntersectionObserver
+  never fires two iframes deep in the harness, leaving thumbs 0-height).
+- PROJECT PAGE: title (Project Page Title / h2 — NOT h1) + year + tags + desc
+  (+ optional play button, which reuses the desktop --play-* pill vars so its
+  Regular/Boxed style carries over) at the top, then a DIVIDER (Tweak mDivShow
+  toggles it via VISIBILITY so the SPACE stays either way; even space above +
+  below from the single mDivSpace slider), then content blocks in ONE column.
+  Blocks reuse the desktop block types (video embed / localvideo / image /
+  text / divider / row→stacked / hscroll); playground & posters projects
+  render as a simple full-width vertical media stack.
+- ABOUT: single column — long bio (h4), meta sections (titles h3, items in
+  Labels style with trailing detail in --text-faint), Vimeo reel at the
+  bottom (extra top margin for even spacing).
+- Nav reuses the SAME hashes (#/, #/about, #/project/<id>) so links work;
+  mobile-app defines window.{goHome, openAbout, openProject}. Embeds are torn
+  down (src=about:blank) on nav.
+
+TYPE LINKING: feed / label / about text inherit the desktop type styles'
+WEIGHT + LEADING + TRACKING + COLOUR (tags reuse the .tag-pill box/outline
+vars incl. tagStyle + --tag-gap; mini uses --mini-color; filters use
+--highlight). Only SIZE is mobile-specific where the desktop size is tuned for
+a wide panel: the home-feed TITLE (desktop h1 = 71px, too big) uses a mobile
+--m-title-size, and the project-page TITLE uses --m-proj-title-size (it maps
+to the desktop h2 WEIGHT/LEADING/TRACKING but a mobile size); mini/tags have
+their own mobile sizes. The rest of the about page uses desktop sizes directly.
+
+MOBILE TWEAKS: a SEPARATE namespace — m* keys in the TWEAKS block (mLogoSize,
+mLogoAlign, mLogoColor, mLogoTapColor, mFeedMode, mFeedGap, mTitleSize,
+mProjTitleSize, mMiniSize, mTagsSize, mHoldBlur/Opacity/Saturation/TextY/Align,
+mLabelAlign, mFilterSize/Align/Gap, mDivShow, mDivSpace). applyMobileTweaks()
+maps them to
+--m-* vars; desktop keys are untouched; content (projects/bio/labels) lives
+once. Two PARALLEL panels, same keys + persistence:
+  - IN-PHONE panel (mobile-app.js) — shown when viewing index.html?device=
+    mobile directly; owns the host protocol + backtick toggle.
+  - HARNESS panel (Mobile Preview.html) — shown when reviewing via the
+    harness; lives in the gray MARGIN (phones shift right), drives the PRIMARY
+    phone via MobileApp.setTweak and relays edits to the sibling frame.
+Both have UNDO/REDO (↶/↷ + ⌘Z / ⇧⌘Z, one snapshot per gesture, cap 50) and
+persist via window.persistTweaks (LS mirror) + the host __edit_mode_set_keys
+disk write. NOTE: new m* keys must be written into the TWEAKS block to reach
+disk; the LS mirror keeps harness edits alive across refresh, but to save
+mobile tweaks to the FILE / GitHub, tweak in the DIRECT mobile view (the
+harness's "open mobile ↗" link) — from inside the harness the host's edit
+target is Mobile Preview.html, not index.html.
 
 ## Layout
 Left panel = fixed identity bar. From top: LOGO, then the Social+About
@@ -379,7 +472,14 @@ omit = no button), hidden.
     images on a line. An empty-string entry is an invisible equal-width
     spacer (e.g. ['', 'x.gif', ''] centers one image in the middle third).
     `center:true` + `maxW:<px>` caps & centers a single logo. `gap`
-    between row images = the Gap X Tweak. A row entry can also be a video
+    between row images = the Gap X Tweak. A row entry can be an object with
+    per-item overrides: `{src, w, valign, scale, align}` — `w` FIXES that
+    item's flex-grow to a constant (so `[{src:a,w:47},{src:b,w:53}]` locks a
+    47%/53% split regardless of aspect; such items are marked data-fixedw so
+    measureProjRows leaves their grow alone); `valign` (start/center/end) sets
+    align-self so a shorter item can center against a taller neighbour;
+    `scale` (0..1) shrinks the image within its slot (slot size unchanged,
+    white space around it) with `align` positioning it. A row entry can also be a video
     object `{video:'<embed url>', ratio:'4/5'}` — it shares the row's
     height (flex-grow = its w/h), so a portrait embed sits beside an image
     at equal height. Video markup is shared via videoInnerHTML(). A row
