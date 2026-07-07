@@ -697,214 +697,17 @@
     document.body.classList.remove('lightbox-open');
   }
 
-  /* ── VIDEO LIGHTBOX ── enlarge an embed into a large centered overlay. Works
-     regardless of native Fullscreen API support (sandboxed iframes block it). */
+  /* ── VIDEO LIGHTBOX ── shared overlay used only to enlarge self-hosted
+     localvideo clips (embeds keep their own native fullscreen). */
 
-  /* Vimeo + YouTube state plumbing (vimeoPlayerFor, ytListen/ytCmd/ytInfo,
-     setUrlParam, isVimeoSrc, isYouTubeSrc) lives in js/video-sync.js. */
-  /* state carried between open → close */
-  var _lbInlineIframe = null;   /* the inline embed we enlarged from */
-  var _lbBigPlayer    = null;   /* Vimeo.Player bound to the lightbox iframe */
-  var _lbBigIframe    = null;   /* the lightbox iframe element itself */
-  var _lbIsYT         = false;  /* current lightbox embed is YouTube */
-  var _lbInlineState  = null;   /* {t, muted, volume, paused} read on open */
-
-  /* Swap a brand-new <iframe id="video-lightbox-iframe"> into the frame each
-     open/close. Reusing one element + swapping its src leaves the previous
-     Vimeo.Player's postMessage listeners bound to it, which made the SECOND
-     enlarge ignore setCurrentTime (it replayed from 0:00). A fresh element =
-     a clean player every time. */
-  function replaceLightboxIframe(src) {
-    var frame = document.getElementById('video-lightbox-frame');
-    var old   = document.getElementById('video-lightbox-iframe');
-    var fresh = document.createElement('iframe');
-    fresh.id = 'video-lightbox-iframe';
-    fresh.setAttribute('frameborder', '0');
-    fresh.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen');
-    fresh.setAttribute('allowfullscreen', '');
-    fresh.setAttribute('webkitallowfullscreen', '');
-    fresh.setAttribute('mozallowfullscreen', '');
-    fresh.src = src || '';
-    if (old) old.replaceWith(fresh);
-    else if (frame) {
-      var vid = document.getElementById('video-lightbox-video');
-      if (vid) frame.insertBefore(fresh, vid); else frame.appendChild(fresh);
-    }
-    return fresh;
-  }
-
-  function openVideoLightbox(src, ratio, inlineIframe) {
-    var lb    = document.getElementById('video-lightbox');
-    var frame = document.getElementById('video-lightbox-frame');
-    if (!lb || !frame) return;
-    var ecb = lb.querySelector('.video-lightbox-close');
-    if (ecb) ecb.style.display = '';            /* embeds keep the close button */
-    frame.classList.remove('is-local');         /* embeds use the fixed-ratio frame */
-    frame.style.background = '';                 /* restore black letterbox for embeds */
-    frame.style.aspectRatio = ratio || '16/9';
-    lb.classList.add('is-active');
-    document.body.classList.add('lightbox-open');
-
-    _lbInlineIframe = inlineIframe || null;
-    _lbBigPlayer    = null;
-    _lbBigIframe    = null;
-    _lbIsYT         = isYouTubeSrc(src);
-    _lbInlineState  = null;
-
-    /* ── YouTube: state comes from the infoDelivery cache (synchronous) ── */
-    if (_lbIsYT && _lbInlineIframe) {
-      var yi = ytInfo(_lbInlineIframe);
-      var yst = {
-        t:      yi.t || 0,
-        muted:  yi.muted  != null ? yi.muted  : true,
-        volume: yi.volume != null ? yi.volume : 100,
-        paused: yi.state === 2
-      };
-      _lbInlineState = yst;
-      ytCmd(_lbInlineIframe, 'pauseVideo');      /* no double-audio */
-      /* bake the state into the URL: mute + start can't lose an API race */
-      var ysrc = src;
-      ysrc = setUrlParam(ysrc, 'enablejsapi', 1);
-      ysrc = setUrlParam(ysrc, 'autoplay', 1);
-      ysrc = setUrlParam(ysrc, 'mute', yst.muted ? 1 : 0);
-      if (yst.t > 0.5) ysrc = setUrlParam(ysrc, 'start', Math.floor(yst.t));
-      var yifr = replaceLightboxIframe(ysrc);
-      _lbBigIframe = yifr;
-      ytListen(yifr);
-      /* volume can't ride the URL — push it once the widget has booted */
-      yifr.addEventListener('load', function () {
-        setTimeout(function () {
-          ytCmd(yifr, 'setVolume', [yst.volume]);
-          ytCmd(yifr, yst.muted ? 'mute' : 'unMute');
-        }, 600);
-      });
-      return;
-    }
-
-    /* ── Vimeo: read the inline state FIRST, then build the lightbox URL with
-       that state baked in (muted param + #t start fragment). Encoding it in
-       the URL wins over any race with the embed's own boot parameters — the
-       old approach (post-ready setMuted) lost to the muted=1 in the src. ── */
-    if (isVimeoSrc(src) && _lbInlineIframe && window.Vimeo && window.Vimeo.Player) {
-      var inlineP = vimeoPlayerFor(_lbInlineIframe);
-      if (inlineP) {
-        var loaded = false;
-        var loadBig = function (st) {
-          if (loaded) return;
-          loaded = true;
-          var bsrc = src.split('#')[0];
-          bsrc = setUrlParam(bsrc, 'autoplay', 1);
-          bsrc = setUrlParam(bsrc, 'muted', st && st.muted ? 1 : 0);
-          if (st && st.t > 0.3) bsrc += '#t=' + st.t.toFixed(2) + 's';
-          var ifr = replaceLightboxIframe(bsrc);
-          _lbBigIframe = ifr;
-          var bigP = null;
-          try { bigP = new window.Vimeo.Player(ifr); } catch (e) {}
-          _lbBigPlayer = bigP;
-          if (bigP) {
-            bigP.ready().then(function () {
-              if (st && st.volume != null) bigP.setVolume(st.volume).catch(function () {});
-              bigP.play().catch(function () {
-                /* unmuted autoplay blocked by the browser → mute & play so the
-                   enlarged video isn't left frozen */
-                bigP.setMuted(true).then(function () { return bigP.play(); }).catch(function () {});
-              });
-            }).catch(function () {});
-          }
-        };
-        /* if the inline player hangs, open plain after 900ms */
-        var lbFallback = setTimeout(function () { loadBig(null); }, 900);
-        Promise.all([
-          inlineP.getCurrentTime().catch(function () { return 0; }),
-          inlineP.getMuted().catch(function () { return true; }),
-          inlineP.getVolume().catch(function () { return null; }),
-          inlineP.getPaused().catch(function () { return false; })
-        ]).then(function (res) {
-          clearTimeout(lbFallback);
-          var st = { t: res[0] || 0, muted: !!res[1], volume: res[2], paused: !!res[3] };
-          _lbInlineState = st;
-          inlineP.pause().catch(function () {});  /* no double-audio */
-          loadBig(st);
-        }, function () { clearTimeout(lbFallback); loadBig(null); });
-        return;
-      }
-    }
-
-    /* anything else: plain open (fresh instance) */
-    _lbBigIframe = replaceLightboxIframe(src);
-  }
   function closeVideoLightbox() {
+    /* the shared video lightbox now serves only self-hosted localvideo clips
+       (embeds keep their own native fullscreen); just stop playback + hide it. */
     var lb  = document.getElementById('video-lightbox');
     var vid = document.getElementById('video-lightbox-video');
     if (!lb) return;
     lb.classList.remove('is-active');
-
-    var inlineIframe = _lbInlineIframe;
-    var bigP         = _lbBigPlayer;
-    var bigIfr       = _lbBigIframe;
-    var wasYT        = _lbIsYT;
-    var inlineSt     = _lbInlineState;
-    _lbInlineIframe = null; _lbBigPlayer = null; _lbBigIframe = null;
-    _lbIsYT = false; _lbInlineState = null;
-
-    function teardown() {
-      /* destroy the enlarged player AND swap in a fresh empty iframe so the next
-         enlarge starts from a clean element (no leftover listeners or audio). */
-      if (bigP) { try { bigP.destroy(); } catch (e) {} }
-      replaceLightboxIframe('');
-    }
-
-    if (wasYT && inlineIframe && bigIfr) {
-      /* ── YouTube: cached state is synchronous — read, teardown, hand back ── */
-      var yi = ytInfo(bigIfr);
-      var yt      = yi.t      != null ? yi.t      : (inlineSt ? inlineSt.t      : 0);
-      var ymuted  = yi.muted  != null ? yi.muted  : (inlineSt ? inlineSt.muted  : true);
-      var yvolume = yi.volume != null ? yi.volume : (inlineSt ? inlineSt.volume : 100);
-      /* 1=playing, 3=buffering → treat as playing; unknown → keep playing */
-      var yplaying = yi.state == null ? true : (yi.state === 1 || yi.state === 3);
-      teardown();
-      ytCmd(inlineIframe, 'seekTo', [yt, true]);
-      ytCmd(inlineIframe, 'setVolume', [yvolume]);
-      ytCmd(inlineIframe, ymuted ? 'mute' : 'unMute');
-      ytCmd(inlineIframe, yplaying ? 'playVideo' : 'pauseVideo');
-    }
-    else if (bigP && inlineIframe) {
-      /* ── Vimeo: read the enlarged time + mute + volume + play-state, hand all
-         of it back to the inline embed, then tear down. Race the reads against
-         a timeout so a hung handshake can't leave audio playing. ── */
-      var inlineP = vimeoPlayerFor(inlineIframe);
-      var doneCl = false;
-      var finish = function () { if (doneCl) return; doneCl = true; teardown(); };
-      var safety = setTimeout(finish, 800);
-      var withTimeout = function (promise, fb) {
-        return Promise.race([
-          promise,
-          new Promise(function (res) { setTimeout(function () { res(fb); }, 550); })
-        ]);
-      };
-      var fbMuted  = inlineSt ? inlineSt.muted  : true;
-      var fbVolume = inlineSt ? inlineSt.volume : null;
-      Promise.all([
-        withTimeout(bigP.getCurrentTime().catch(function () { return null; }), null),
-        withTimeout(bigP.getMuted().catch(function () { return fbMuted; }), fbMuted),
-        withTimeout(bigP.getVolume().catch(function () { return fbVolume; }), fbVolume),
-        withTimeout(bigP.getPaused().catch(function () { return false; }), false)
-      ]).then(function (res) {
-        var t = res[0], muted = res[1], volume = res[2], paused = res[3];
-        if (inlineP) {
-          if (t != null) inlineP.setCurrentTime(t).catch(function () {});
-          inlineP.setMuted(!!muted).catch(function () {});
-          if (volume != null) inlineP.setVolume(volume).catch(function () {});
-          if (paused) inlineP.pause().catch(function () {});
-          else        inlineP.play().catch(function () {});
-        }
-        clearTimeout(safety); finish();
-      }, function () { clearTimeout(safety); finish(); });
-    } else {
-      teardown();
-    }
-
-    if (vid) {                                           /* stop local playback */
+    if (vid) {
       vid.pause();
       vid.removeAttribute('src');
       vid.load();
@@ -945,13 +748,6 @@
     document.addEventListener('click', function (e) {
       var z = e.target.closest && e.target.closest('.proj-block img[data-zoom], .posters-tile img[data-zoom]');
       if (z) { e.preventDefault(); openLightbox(z.src); }
-      var vz = e.target.closest && e.target.closest('.proj-video-zoom');
-      if (vz) {
-        e.preventDefault();
-        var vzWrap = vz.closest('.proj-video');
-        var vzInline = vzWrap ? vzWrap.querySelector('iframe') : null;
-        openVideoLightbox(vz.getAttribute('data-vsrc'), vz.getAttribute('data-vratio'), vzInline);
-      }
       var lv = e.target.closest && e.target.closest('.proj-localvideo');
       if (lv) {
         var lvid = lv.querySelector('video');
@@ -1009,11 +805,6 @@
     measureProjRows(body);
     initHscroll(body);
     initLocalVideos(body);
-    /* start the YouTube state stream for any inline YT embeds so enlarge can
-       read their time/mute/volume (Vimeo players are created lazily on click) */
-    body.querySelectorAll('iframe').forEach(function (f) {
-      if (isYouTubeSrc(f.src)) ytListen(f);
-    });
   }
 
   /* self-hosted videos autoplay muted; if the browser blocks autoplay (e.g. iOS

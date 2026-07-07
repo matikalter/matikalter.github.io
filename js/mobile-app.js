@@ -160,23 +160,122 @@
     applyMobileTweaks();
   }
 
-  /* ── video embed markup (mirrors portfolio.videoInnerHTML) ── */
-  function embedIframe(src) {
-    return '<iframe src="' + esc(src) + '" frameborder="0" '
-      + 'allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" '
-      + 'allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe>';
+  /* ── video embeds ──────────────────────────────────────────────────
+     iOS caps how many video decoders can run at once; loop-troupe renders
+     5+ Vimeo players, so mounting them all at load makes most hang ("stuck
+     on load"). So on mobile we LAZY-MOUNT each embed's iframe only when it
+     nears the viewport and TEAR IT DOWN when it scrolls far away, keeping
+     the live-decoder count to ~1-2. See initMobileEmbeds(). */
+  function isYouTubeSrc(s) { return /youtube(-nocookie)?\.com|youtu\.be/i.test(s || ''); }
+
+  /* YouTube's iframe embed has no "tap to unmute" pill like Vimeo. The most
+     intuitive NATIVE affordance on iPhone is to NOT muted-autoplay: drop
+     autoplay+mute so the player shows its poster + big play button, and a tap
+     plays WITH sound (a real user gesture). Vimeo already shows an unmute
+     button, so it's left autoplaying muted. */
+  function mobileEmbedSrc(src) {
+    if (isYouTubeSrc(src)) {
+      return String(src)
+        .replace(/([?&])autoplay=1/gi, '$1autoplay=0')
+        .replace(/([?&])mute=1/gi, '$1mute=0');
+    }
+    return src;
+  }
+
+  /* a lazy embed placeholder: carries the src, no iframe yet. Sized with the
+     bulletproof padding-bottom technique (height:0 + padding-bottom:%), NOT the
+     CSS `aspect-ratio` property — in an iOS Safari flex column aspect-ratio can
+     fail to give the box a height, letting the iframe's default 300×150 land-
+     scape size win (which pillarboxes a portrait video with black side bars). */
+  function ratioToPB(ratio) {
+    if (!ratio) return 56.25;                 // 16/9 default
+    var p = String(ratio).split('/');
+    var wr = parseFloat(p[0]), hr = parseFloat(p[1]);
+    if (!wr || !hr) return 56.25;
+    return (hr / wr) * 100;
+  }
+  function embedBlock(src, ratio, extraCls) {
+    var pb = ratioToPB(ratio).toFixed(4);
+    return '<div class="m-block m-embed' + (extraCls || '') + '" data-embed-src="' + esc(mobileEmbedSrc(src)) + '" style="padding-bottom:' + pb + '%"></div>';
+  }
+
+  var embedBlocks = [];
+  var embedScrollFn = null, embedRAF = 0, embedObserver = null;
+  function mountEmbed(block) {
+    if (block.querySelector('iframe')) return;
+    var src = block.getAttribute('data-embed-src');
+    if (!src) return;
+    var ifr = document.createElement('iframe');
+    ifr.setAttribute('frameborder', '0');
+    ifr.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen');
+    ifr.setAttribute('allowfullscreen', '');
+    ifr.setAttribute('webkitallowfullscreen', '');
+    ifr.setAttribute('mozallowfullscreen', '');
+    ifr.src = src;
+    block.appendChild(ifr);
+  }
+  function unmountEmbed(block) {
+    var ifr = block.querySelector('iframe');
+    if (ifr) { ifr.src = 'about:blank'; ifr.remove(); }
+  }
+  /* mount embeds within a viewport margin, tear down far ones. Scroll-driven
+     (getBoundingClientRect) rather than IntersectionObserver, because IO is
+     unreliable two iframes deep in the preview harness. */
+  function updateMobileEmbeds() {
+    var h = window.innerHeight || document.documentElement.clientHeight;
+    var margin = 400;
+    embedBlocks.forEach(function (b) {
+      var r = b.getBoundingClientRect();
+      var near = (r.top < h + margin) && (r.bottom > -margin);
+      if (near) mountEmbed(b); else unmountEmbed(b);
+    });
+  }
+  function initMobileEmbeds() {
+    // clear any previous wiring
+    if (embedScrollFn) {
+      window.removeEventListener('scroll', embedScrollFn);
+      document.removeEventListener('scroll', embedScrollFn, true);
+      window.removeEventListener('resize', embedScrollFn);
+      window.removeEventListener('touchmove', embedScrollFn);
+      embedScrollFn = null;
+    }
+    if (embedObserver) { embedObserver.disconnect(); embedObserver = null; }
+    embedBlocks = Array.prototype.slice.call(viewEl.querySelectorAll('.m-embed[data-embed-src]'));
+    if (!embedBlocks.length) return;
+
+    // primary: IntersectionObserver (fires on real-device scroll)
+    if ('IntersectionObserver' in window) {
+      embedObserver = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting) mountEmbed(e.target); else unmountEmbed(e.target);
+        });
+      }, { root: null, rootMargin: '400px 0px', threshold: 0 });
+      embedBlocks.forEach(function (b) { embedObserver.observe(b); });
+    }
+    // backup: scroll/touch/resize → rect-based pass (covers contexts where IO
+    // is flaky). Both paths mount/unmount idempotently by position, so agree.
+    embedScrollFn = function () {
+      if (embedRAF) return;
+      embedRAF = requestAnimationFrame(function () { embedRAF = 0; updateMobileEmbeds(); });
+    };
+    window.addEventListener('scroll', embedScrollFn, { passive: true });
+    document.addEventListener('scroll', embedScrollFn, true);
+    window.addEventListener('resize', embedScrollFn);
+    window.addEventListener('touchmove', embedScrollFn, { passive: true });
+    updateMobileEmbeds();   // initial pass (top-of-page embeds)
   }
 
   /* ── content block → single-column HTML ── */
   function blockHTML(b, pid) {
     if (!b || !b.type) return '';
     if (b.type === 'video') {
-      var vst = b.ratio ? ' style="aspect-ratio:' + b.ratio + '"' : '';
-      return '<div class="m-block m-embed"' + vst + '>' + embedIframe(b.src) + '</div>';
+      return embedBlock(b.src, b.ratio);
     }
     if (b.type === 'localvideo') {
-      var lst = b.ratio ? ' style="aspect-ratio:' + b.ratio + ';object-fit:contain;background:#000"' : '';
-      return '<div class="m-block m-video"><video src="' + assetURL(pid, encodeURIComponent(b.src)) + '" autoplay muted loop playsinline preload="metadata"' + lst + '></video></div>';
+      /* mobile is single-column, so ignore the desktop `ratio` (it exists to
+         equalize heights in side-by-side rows) — render at natural aspect,
+         no letterbox box, no black bg. */
+      return '<div class="m-block m-video"><video src="' + assetURL(pid, encodeURIComponent(b.src)) + '" autoplay muted loop playsinline preload="metadata"></video></div>';
     }
     if (b.type === 'image') {
       var ist = '';
@@ -198,7 +297,7 @@
       var imgs = (b.images || []).map(function (im) {
         var src = (typeof im === 'string') ? im : (im.src || im.localvideo || im.video);
         if (!src) return '';
-        if (typeof im === 'object' && im.video) return '<div class="m-block m-embed">' + embedIframe(im.video) + '</div>';
+        if (typeof im === 'object' && im.video) return embedBlock(im.video, im.ratio);
         if (typeof im === 'object' && im.localvideo) return '<div class="m-block m-video"><video src="' + assetURL(pid, encodeURIComponent(im.localvideo)) + '" autoplay muted loop playsinline preload="metadata"></video></div>';
         return '<div class="m-block"><img src="' + assetURL(pid, encodeURIComponent(src)) + '" alt="" loading="lazy"></div>';
       }).join('');
@@ -379,13 +478,14 @@
       body = p.content.map(function (b) { return blockHTML(b, p.id); }).join('');
     } else {
       // fallback: video + images
-      if (p.video) body += '<div class="m-block m-embed">' + embedIframe(p.video) + '</div>';
+      if (p.video) body += embedBlock(p.video);
       (p.images || []).forEach(function (src) { body += '<div class="m-block"><img src="' + assetURL(p.id, src) + '" alt="" loading="lazy"></div>'; });
     }
 
     viewEl.className = 'm-view m-project';
     viewEl.innerHTML = head + '<div class="m-divider m-head-divider"></div><div class="m-proj-body">' + body + '</div>';
     positionView();
+    initMobileEmbeds();
     window.scrollTo(0, 0);
   }
 
@@ -434,6 +534,14 @@
     return { view: 'home' };
   }
   function teardownEmbeds() {
+    if (embedScrollFn) {
+      window.removeEventListener('scroll', embedScrollFn);
+      document.removeEventListener('scroll', embedScrollFn, true);
+      window.removeEventListener('resize', embedScrollFn);
+      window.removeEventListener('touchmove', embedScrollFn);
+      embedScrollFn = null;
+    }
+    if (embedObserver) { embedObserver.disconnect(); embedObserver = null; }
     if (!viewEl) return;
     viewEl.querySelectorAll('iframe').forEach(function (f) { f.src = 'about:blank'; });
   }
@@ -661,6 +769,7 @@
     setTweak: setMobileTweak, getValue: tv, defaults: MDEF,
     undo: undoTweak, redo: redoTweak,
     canUndo: function () { return histUndo.length > 0; }, canRedo: function () { return histRedo.length > 0; },
+    updateEmbeds: function () { updateMobileEmbeds(); },
     refresh: function () { applyMobileTweaks(); applyRoute(); }
   };
 })();

@@ -744,8 +744,10 @@
   @media (hover: none) { .proj-video-zoom { opacity: 1; } }
 
   /* localvideo block — self-hosted MP4. Full width, natural height (GIF-like),
-     native controls do scrub / volume / fullscreen. `ratio` opt-in fixed box. */
-  .proj-localvideo { background: #000; line-height: 0; position: relative; }
+     native controls do scrub / volume / fullscreen. `ratio` opt-in fixed box.
+     Background transparent (not #000) so sub-pixel rounding can't leak a 1px
+     black hairline under/around the clip — any letterbox shows the white page. */
+  .proj-localvideo { background: transparent; line-height: 0; position: relative; }
   .proj-localvideo video { display: block; width: 100%; height: auto; cursor: zoom-in; }
   .proj-localvideo-ratio { overflow: hidden; }
   .proj-localvideo-ratio video { width: 100%; height: 100%; object-fit: contain; }
@@ -1519,12 +1521,18 @@
     transition: transform 0.42s cubic-bezier(.2,.7,.2,1);
     will-change: transform;
     box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+    overflow: hidden;   /* clip the media's 1px edge fringe (see below) */
   }
   .pg-overlay-img img,
   .pg-overlay-img video {
     display: block;
-    width: 100%; height: 100%;
-    object-fit: contain;
+    /* overscan 1px on every edge (then clipped by the wrap's overflow:hidden):
+       a transform-scaled <video> leaves a 1px dark compositing seam on its
+       bottom/right edges — pushing the media 1px past the box hides it.
+       cover keeps it filling with no letterbox. */
+    position: relative; top: -1px; left: -1px;
+    width: calc(100% + 2px); height: calc(100% + 2px);
+    object-fit: cover;
   }
 
   /* ── PROJECT-PAGE IMAGE LIGHTBOX ──
@@ -3116,7 +3124,7 @@
         { type: 'text', full: true,
           title: 'Communicating Vision',
           body: 'I created concept art and visual guides covering environmental assets, animations, and interactions to align our team\'s artists, maintain stylistic cohesion, and support game design ideation.' },
-        { type: 'image', src: 'SkethesCombo-01.jpg', full: true },
+        { type: 'image', src: 'SketchesCombo-02.jpg', full: true },
         { type: 'image', src: 'Flower-Stages-ConceptArt-02.JPG.jpg' },
         { type: 'image', src: 'Tech-Art-Blockout-3-b.jpg' },
         { type: 'row', images: ['IMG_2474.jpg', 'IMG_2462.jpg', 'IMG_2427.jpg', 'GXYL1315.JPG'] },
@@ -3208,8 +3216,7 @@
       content: [
         { type: 'video', src: 'https://www.youtube-nocookie.com/embed/9XL_Y7d7E_g?start=2&autoplay=1&mute=1&loop=1&playlist=9XL_Y7d7E_g&controls=1&modestbranding=1&rel=0&playsinline=1&fs=1' },
         { type: 'row', images: ['Image Sequence_010_0000.jpg', 'Image Sequence_018_0000.jpg'] },
-        { type: 'row', images: ['Image Sequence_098_0000.jpg', 'Image Sequence_071_0000.jpg'] },
-        { type: 'row', images: ['Image Sequence_076_0000.jpg', 't34t3.jpg'] },
+        { type: 'row', images: ['Image Sequence_076_0000.jpg', 'Image Sequence_071_0000.jpg'] },
         { type: 'divider' },
         { type: 'text', full: true, title: 'Experience Mapping', body: 'Diagrams and storyboards map the game\'s narrative structure and emotional arc - where tension builds, where the pace softens, and how player agency shifts over time. Color and composition reinforce these beats, guiding the emotional journey.' },
         { type: 'image', src: 'EV-Diagram-2.jpg', full: true },
@@ -3627,10 +3634,6 @@
 </script>
 
 <!-- Implementation — split into focused files. Loaded in order; share global scope. -->
-<!-- Vimeo Player API: lets the enlarge/close flow sync the playhead between the
-     inline embed and the lightbox copy (instead of spawning a fresh instance). -->
-<script src="https://player.vimeo.com/api/player.js"></script>
-<script src="js/video-sync.js"></script>
 <script src="js/list-gallery.js"></script>
 <script src="js/gallery-display.js"></script>
 <script src="js/adaptive-invert.js"></script>

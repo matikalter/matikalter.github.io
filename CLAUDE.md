@@ -86,7 +86,10 @@ modern — imagery gets center stage, interface stays quiet.
   HEIGHT-DRIVEN too (sized by available height, shrunk only if it would overflow
   the content width) and stays centered in the content window; recenterOverlay()
   re-fits + re-centers it on resize while open (like project-page image
-  lightboxes). All width math + the
+  lightboxes). The expanded media (.pg-overlay-img img/video) is OVERSCANNED 1px
+  on every edge inside an overflow:hidden wrap (object-fit:cover) — a transform-
+  scaled <video> leaves a 1px dark GPU compositing seam on its bottom/right, so
+  pushing the media past the box hides it. All width math + the
   expand overlay read --left-w via the leftWNow() helper (isNaN-guarded, NOT
   `|| 340`) so a collapsed toolbar's --left-w:0 is respected (otherwise the
   gallery + the expand overlay jump/shrink by a phantom 340px). SCROLL MODE (Tweak pgScrollMode →
@@ -171,12 +174,6 @@ modern — imagery gets center stage, interface stays quiet.
   the hover colour with no dark-fade flash. Exposes window.AdaptiveInvert
   .{refresh, ping, update}; refresh() reconciles the per-pill targets and is
   called from renderMiniInfo + the filter click handler.
-- js/video-sync.js — shared video state plumbing used by the enlarge
-  lightbox: caches a Vimeo.Player per inline iframe, and speaks the
-  YouTube widget postMessage protocol directly (no SDK) to read each
-  embed's live time/mute/volume. Exposes vimeoPlayerFor, ytListen/
-  ytCmd/ytInfo, setUrlParam, isVimeoSrc, isYouTubeSrc on window.
-  Loaded BEFORE list-gallery.js (after the Vimeo Player API script).
 - js/tweaks-app.jsx — in-page Tweaks panel UI (+ js/tweaks-panel.jsx
   is the reusable shell/control library). tweaks-panel.jsx also holds
   the SYNC PERSISTENCE safety net (window.persistTweaks mirror) wiring
@@ -247,6 +244,34 @@ MOBILE-APP (js/mobile-app.js) — independent layer, shares DATA not code:
   Blocks reuse the desktop block types (video embed / localvideo / image /
   text / divider / row→stacked / hscroll); playground & posters projects
   render as a simple full-width vertical media stack.
+  VIDEO HANDLING (mobile-specific, differs from desktop):
+    * iframe EMBEDS (YouTube/Vimeo) are LAZY-MOUNTED — iOS caps simultaneous
+      video decoders, so mounting all of loop-troupe's 5 Vimeos at once made
+      most hang on load. initMobileEmbeds() renders each embed as an empty
+      .m-embed[data-embed-src] placeholder and only creates the <iframe> when
+      it nears the viewport (IntersectionObserver + a scroll/touch/resize
+      rect-pass fallback, since IO is flaky two iframes deep in the harness),
+      tearing it down when far off-screen so ~1-2 decoders are live at a time.
+      Embed boxes are sized by the PADDING-BOTTOM technique (JS ratioToPB →
+      height:0 + padding-bottom:%), NOT css aspect-ratio: in an iOS flex column
+      aspect-ratio can fail to give the box a height, letting the iframe's
+      default 300×150 landscape win (which pillarboxed the-last-question's 4/5
+      portrait Vimeo with black side bars). Embeds keep a black fill + 1px
+      iframe overscan (clips the letterbox hairline).
+    * YOUTUBE on mobile drops autoplay+mute (mobileEmbedSrc → autoplay=0&mute=0)
+      so the native player shows its poster + big play button and plays WITH
+      sound on tap — YouTube's iframe has no Vimeo-style "tap to unmute" pill
+      and no param for one, so tap-to-play-with-sound is the intuitive native
+      affordance. Vimeo is left autoplaying muted (it shows its own unmute
+      button).
+    * localvideo (incl. playground/posters clips) renders at NATURAL aspect
+      with a TRANSPARENT container (.m-block.m-video) + line-height:0 — the old
+      forced 16/9 + black box caused (a) a black bar under non-16/9 clips like
+      Date Night and (b) a 1px black hairline leaking around videos during iOS
+      scroll compositing. No black bg = any sub-pixel seam shows the white page
+      (invisible). Mobile IGNORES the desktop `ratio` on localvideo (it exists
+      to equalize heights in side-by-side desktop rows; single-column mobile
+      wants native aspect, no letterbox).
 - ABOUT: single column — long bio (h4), meta sections (titles h3, items in
   Labels style with trailing detail in --text-faint), Vimeo reel at the
   bottom (extra top margin for even spacing).
@@ -440,7 +465,10 @@ omit = no button), hidden.
   - localvideo block: a SELF-HOSTED MP4 (`assets/<id>/<src>`) in a native
     <video> — autoplay+muted+loop like a GIF but far smaller/sharper, with
     NO native controls. `full:true` spans both cols at natural height (no
-    letterbox); optional `ratio` locks a contain-fit box. Renders a zoom-in
+    letterbox); optional `ratio` locks a contain-fit box. The `.proj-localvideo`
+    container background is TRANSPARENT (not #000) so sub-pixel rounding can't
+    leak a 1px black hairline under/around the clip — any letterbox shows the
+    white page instead. Renders a zoom-in
     cursor; click → enlarges into the image-style lightbox (the lightbox
     frame shrink-wraps the clip so clicking any dim area outside it closes;
     NO × button — embeds keep theirs). If the browser blocks autoplay (iOS
@@ -576,10 +604,10 @@ the hardcoded about-page reel). Self-hosted
 localvideo clips reuse that overlay but the frame shrink-wraps the clip
 (.is-local — no fixed-ratio box, no × button) so the visible video bounds
 equal the clickable bounds; the enlarged clip autoplays muted+looping
-with no controls. (Embeds no longer enlarge, so the old embed playback-sync
-plumbing across enlarge/close is dormant for embeds — the helpers in
-js/video-sync.js remain only for any future use; embeds now rely on their
-native fullscreen instead.)
+with no controls. (Embeds no longer enlarge — they use native fullscreen —
+so the old embed playback-sync plumbing and js/video-sync.js + the Vimeo
+Player API script have been REMOVED. closeVideoLightbox() now only serves
+localvideo; openVideoLightbox/replaceLightboxIframe are gone.)
 
 ## Page-exit video teardown
 Hiding a view with display:none does NOT stop its iframes (audio kept
