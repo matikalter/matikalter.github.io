@@ -764,6 +764,111 @@
   .proj-localvideo-play:hover { background: rgba(0,0,0,0.7); }
   .proj-localvideo-play svg { width: 26px; height: 26px; display: block; margin-left: 3px; }
 
+  /* ── RICH VIDEO block — self-hosted MP4 with a custom minimal control set.
+     Autoplay muted loop, no native chrome. The whole .rv-stage is MOVED into
+     #rv-lightbox on enlarge, so its controls work identically in both modes. */
+  .rich-video-block { background: transparent; line-height: 0; }
+  .rv-stage { position: relative; line-height: 0; cursor: pointer; }
+  .rv-video { display: block; width: 100%; height: auto; }
+  /* ratio-locked richvideo — matches a neighbour's box (e.g. a square embed):
+     the block gets an inline aspect-ratio, the stage absolutely fills it. */
+  .rich-video-block.rv-ratio { position: relative; }
+  .rv-ratio .rv-stage { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .rv-ratio .rv-video { width: 100%; height: 100%; object-fit: contain; }
+  /* shared control button */
+  .rv-btn {
+    width: 34px; height: 34px; padding: 0; border: 0; margin: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.55); color: #fff; border-radius: 5px;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: background 0.18s, opacity 0.18s;
+  }
+  .rv-btn:hover { background: rgba(0,0,0,0.82); }
+  .rv-btn svg { width: 16px; height: 16px; }
+  /* controls: hidden by default, revealed by the idle-timer class (.rv-show),
+     on hover, or while paused; they fade out after a few seconds of inactivity. */
+  .rv-ctrl { position: absolute; z-index: 3; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+  .rv-stage.rv-show .rv-ctrl,
+  .rv-stage:hover .rv-ctrl,
+  .rv-stage.is-paused .rv-ctrl { opacity: 1; pointer-events: auto; }
+  .rv-ctrl-vol { left: 12px; bottom: 12px; }
+  .rv-ctrl-enlarge { right: 12px; bottom: 12px; }
+  /* the muted volume button stays pinned on load (never fades) until sound is
+     turned on; once in sound mode it follows the normal idle-fade like the rest. */
+  .rv-stage:not(.is-unmuted) .rv-ctrl-vol { opacity: 1; pointer-events: auto; }
+  /* volume glyph: exactly ONE shows — muted by default, sound glyph when unmuted */
+  .rv-ic-muted, .rv-ic-vol { display: block; }
+  .rv-ic-vol { display: none; }
+  .rv-stage.is-unmuted .rv-ic-vol { display: block; }
+  .rv-stage.is-unmuted .rv-ic-muted { display: none; }
+  /* vertical volume slider — appears ONLY while the pointer is over the volume
+     ICON (the control's hover box is just the button; the slider is taken out of
+     flow so its reserved space doesn't count as a hover target). A transparent
+     bridge under the slider keeps :hover continuous while moving onto it to drag.
+     Stays present at 0 volume; fades only when the pointer leaves the icon. */
+  .rv-vol-slider {
+    position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%);
+    display: flex; align-items: center; justify-content: center;
+    padding: 12px 14px; background: rgba(0,0,0,0.55); border-radius: 17px;
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+  }
+  .rv-vol-slider::after { content: ''; position: absolute; top: 100%; left: 0; right: 0; height: 10px; }
+  .rv-stage.is-unmuted .rv-ctrl-vol:hover .rv-vol-slider {
+    opacity: 1; visibility: visible; pointer-events: auto;
+  }
+  .rv-vol-range {
+    -webkit-appearance: slider-vertical; appearance: slider-vertical;
+    writing-mode: vertical-lr; direction: rtl;
+    width: 6px; height: 92px; margin: 0; cursor: pointer;
+    accent-color: #fff;
+  }
+  /* enlarge glyph: exactly ONE shows — expand when small, compress when enlarged */
+  .rv-ic-expand, .rv-ic-compress { display: block; }
+  .rv-ic-compress { display: none; }
+  .rv-stage.is-enlarged .rv-ic-expand { display: none; }
+  .rv-stage.is-enlarged .rv-ic-compress { display: block; }
+  /* centre play/pause feedback glyph */
+  .rv-center {
+    position: absolute; inset: 0; margin: auto; z-index: 4;
+    width: 66px; height: 66px; border-radius: 50%;
+    background: rgba(0,0,0,0.5); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none; opacity: 0;
+  }
+  .rv-center svg { width: 28px; height: 28px; display: block; }
+  .rv-center .rv-ic-plc { margin-left: 3px; }
+  .rv-center .rv-ic-pc, .rv-center .rv-ic-plc { display: none; }
+  .rv-center[data-s="paused"] { opacity: 1; transition: opacity 0.2s ease; }
+  .rv-center[data-s="paused"] .rv-ic-pc { display: block; }
+  .rv-center[data-s="flash-in"] { opacity: 1; transition: none; }
+  .rv-center[data-s="flash-out"] { opacity: 0; transition: opacity 0.6s ease; }
+  .rv-center[data-s="flash-in"] .rv-ic-plc,
+  .rv-center[data-s="flash-out"] .rv-ic-plc { display: block; }
+
+  /* rich-video enlarge overlay — mirrors the image/video lightbox */
+  .rv-lightbox {
+    position: fixed; inset: 0; z-index: 200;
+    display: none; align-items: center; justify-content: center;
+  }
+  .rv-lightbox.is-active { display: flex; }
+  .rv-lb-backdrop {
+    position: absolute; inset: 0;
+    background: color-mix(in srgb, var(--bg) 60%, transparent);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    opacity: 0; transition: opacity 0.3s ease;
+  }
+  .rv-lightbox.is-active .rv-lb-backdrop { opacity: 1; }
+  .rv-lb-frame { position: relative; z-index: 1; line-height: 0; }
+  /* enlarged: the stage drops its ratio-fill absolute layout and the video
+     sizes to the viewport (max-bounded by the lightbox-size tweak). */
+  .rv-stage.is-enlarged { position: relative; inset: auto; width: auto; height: auto; }
+  .rv-stage.is-enlarged .rv-video {
+    width: auto; height: auto; object-fit: contain;
+    max-width:  calc(var(--lightbox-size, 0.75) * 100vw);
+    max-height: calc(var(--lightbox-size, 0.75) * 100vh);
+  }
+
   /* text block — title (Heading 3 type) + body (body type). Vertical spacing
      and the body measure are tweakable via the --proj-text-* variables. */
   .proj-text {
@@ -1740,6 +1845,12 @@
         <iframe id="video-lightbox-iframe" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe>
         <video id="video-lightbox-video" loop muted playsinline preload="metadata" style="display:none"></video>
       </div>
+    </div>
+
+    <!-- Rich-video enlarge overlay — the whole .rv-stage is moved in here -->
+    <div class="rv-lightbox" id="rv-lightbox">
+      <div class="rv-lb-backdrop"></div>
+      <div class="rv-lb-frame"></div>
     </div>
 
   </div>
@@ -3181,22 +3292,22 @@
         { type: 'text', full: false,
           title: 'Le Chef',
           body: 'Chef craves the perfect dish.<br>His adoring utensils are dying to help.<br>A clay-mation stylized tale of love and betrayal.' },
-        { type: 'video', full: false, ratio: '1/1', src: 'https://player.vimeo.com/video/1137310832?autoplay=1&loop=1&muted=1&controls=1&portrait=0&byline=0&title=0&dnt=1' },
+        { type: 'richvideo', ratio: '1/1', src: 'Chef-06-Sound-web.mp4' },
         { type: 'image', src: 'Chef-One-Pager-SQ.png', ratio: '1/1' },
         { type: 'localvideo', full: false, ratio: '1/1', src: 'Chef_WireOrbit_02_Web.mp4' },
         { type: 'divider' },
         { type: 'text', full: false,
           title: 'Cowboy Samuel',
           body: 'Sam loves struttin the wilderness in his favorite pair of fur kicks - and he\'s got some slitherin company to boot. A walk cycle exploring stylized characters, grounded in environmental realism.' },
-        { type: 'video', full: false, ratio: '16/9', src: 'https://player.vimeo.com/video/1137474030?autoplay=1&loop=1&muted=1&controls=1&portrait=0&byline=0&title=0&dnt=1' },
+        { type: 'richvideo', ratio: '16/9', src: 'CowboySam-01-Web.mp4' },
         { type: 'image', src: 'Sam_Lineup_Horiz.jpg' },
         { type: 'image', src: 'CowboySamuelPoster-LS-01-web.jpg' },
         { type: 'divider' },
         { type: 'text', full: false, rows: 2,
           title: 'Meep the Shrimp',
           body: 'A multiped character brought to life with wiggly mustache physics, bubbly particles, and a friendly interloper dropping in to say hi.' },
-        { type: 'video', full: false, ratio: '16/9', src: 'https://player.vimeo.com/video/1137477150?autoplay=1&loop=1&muted=1&controls=1&portrait=0&byline=0&title=0&dnt=1' },
-        { type: 'video', full: false, ratio: '16/9', src: 'https://player.vimeo.com/video/1137708300?autoplay=1&loop=1&muted=1&controls=1&portrait=0&byline=0&title=0&dnt=1' }
+        { type: 'richvideo', ratio: '16/9', src: 'Shrimp-Web.mp4' },
+        { type: 'localvideo', full: false, ratio: '16/9', src: 'Shrimp_BTS_WireAppear_Web.mp4' }
       ],
       hidden:     false
     },

@@ -521,6 +521,34 @@
          +   'allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe>';
   }
 
+  /* ── RICH VIDEO ──
+     A self-hosted MP4 with a custom minimal control set (opt-in per block via
+     `{ type:'richvideo' }`). Autoplays muted + loops with NO native chrome; on
+     top we draw our own bottom-left volume (muted glyph → tap → volume glyph +
+     a slider above it), a bottom-right enlarge toggle, and a click-anywhere
+     play/pause with a centre glyph. The ENTIRE .rv-stage is moved into
+     #rv-lightbox when enlarged (same <video> + listeners), so every control
+     behaves identically inline and enlarged. */
+  var RV_ICONS = {
+    muted:   '<svg class="rv-ic-muted" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3z"></path><path d="M16.5 9.5l5 5m0-5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>',
+    vol:     '<svg class="rv-ic-vol" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3z"></path><path d="M16 8.5a5 5 0 0 1 0 7M18.6 6a9 9 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>',
+    expand:  '<svg class="rv-ic-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg>',
+    compress:'<svg class="rv-ic-compress" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"></path></svg>',
+    pauseC:  '<svg class="rv-ic-pc" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect></svg>',
+    playC:   '<svg class="rv-ic-plc" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>'
+  };
+  function richVideoInnerHTML(src) {
+    return '<div class="rv-stage">'
+         +   '<video class="rv-video" src="' + src + '" autoplay muted loop playsinline preload="metadata"></video>'
+         +   '<div class="rv-center" data-s="" aria-hidden="true">' + RV_ICONS.pauseC + RV_ICONS.playC + '</div>'
+         +   '<div class="rv-ctrl rv-ctrl-vol">'
+         +     '<div class="rv-vol-slider"><input type="range" class="rv-vol-range" min="0" max="100" value="100" aria-label="Volume"></div>'
+         +     '<button class="rv-btn rv-vol-btn" type="button" aria-label="Unmute">' + RV_ICONS.muted + RV_ICONS.vol + '</button>'
+         +   '</div>'
+         +   '<button class="rv-btn rv-ctrl rv-ctrl-enlarge rv-enlarge-btn" type="button" aria-label="Enlarge">' + RV_ICONS.expand + RV_ICONS.compress + '</button>'
+         + '</div>';
+  }
+
   function blockHTML(b, pid) {
     var full = b.full ? ' full' : '';
     if (b.type === 'video') {
@@ -547,6 +575,30 @@
            +   '<button class="proj-localvideo-play" type="button" aria-label="Play video">'
            +     '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>'
            +   '</button>'
+           + '</div>';
+    }
+    /* spacer: an empty single-column grid cell. Use it to occupy a slot so a
+       following block lands in the OTHER column (and grid-auto-flow:dense can't
+       backfill the hole with a later block). Renders nothing visible. */
+    if (b.type === 'spacer') {
+      var spfull = (b.full === true) ? ' full' : '';
+      return '<div class="proj-block' + spfull + ' proj-spacer" aria-hidden="true"></div>';
+    }
+    /* rich video: self-hosted MP4 with the custom minimal control UI. Single
+       column by default (full:true spans both). Optional `ratio` locks the cell
+       to that aspect (contain-fit) so it can match a neighbour like a square
+       embed; optional `col` forces its grid column (1 or 2) so it can sit
+       directly under a specific neighbour. */
+    if (b.type === 'richvideo') {
+      var rvfull = (b.full === true) ? ' full' : '';
+      var rvSt = [];
+      if (b.ratio)      rvSt.push('aspect-ratio:' + b.ratio);
+      if (b.col)        rvSt.push('grid-column:' + b.col);
+      if (b.mt != null) rvSt.push('margin-top:' + b.mt + 'px');
+      if (b.mb != null) rvSt.push('margin-bottom:' + b.mb + 'px');
+      var rvStyle = rvSt.length ? ' style="' + rvSt.join(';') + '"' : '';
+      return '<div class="proj-block' + rvfull + ' rich-video-block' + (b.ratio ? ' rv-ratio' : '') + '"' + rvStyle + '>'
+           +   richVideoInnerHTML('assets/' + pid + '/' + encodeURIComponent(b.src))
            + '</div>';
     }
     if (b.type === 'text') {
@@ -775,8 +827,16 @@
     lb.addEventListener('wheel', function (e) { e.preventDefault(); }, { passive: false });
     lb.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') { closeLightbox(); closeVideoLightbox(); }
+      if (e.key === 'Escape') { closeLightbox(); closeVideoLightbox(); closeRichEnlarge(); }
     });
+    /* rich-video enlarge overlay: click the dim backdrop (anywhere outside the
+       stage) to close; clicks on the video/controls are handled by the stage. */
+    var rvlb = document.getElementById('rv-lightbox');
+    if (rvlb) {
+      rvlb.addEventListener('click', function (e) {
+        if (!e.target.closest('.rv-stage')) closeRichEnlarge();
+      });
+    }
   }
 
   function renderProjectStandard(p) {
@@ -805,6 +865,152 @@
     measureProjRows(body);
     initHscroll(body);
     initLocalVideos(body);
+    initRichVideos(body);
+  }
+
+  /* ── RICH VIDEO wiring ──
+     One setup per .rv-stage: click-to-toggle-play (centre glyph), a volume
+     button that unmutes + reveals a vertical slider, and an enlarge toggle that
+     moves the whole stage into #rv-lightbox and back. */
+  var rvEnlarged = null;
+  function initRichVideos(container) {
+    var stages = container.querySelectorAll('.rv-stage');
+    Array.prototype.forEach.call(stages, function (stage) { setupRichVideo(stage); });
+  }
+  function setupRichVideo(stage) {
+    if (stage.__rv) return; stage.__rv = true;
+    var video  = stage.querySelector('.rv-video');
+    var center = stage.querySelector('.rv-center');
+    var volBtn = stage.querySelector('.rv-vol-btn');
+    var range  = stage.querySelector('.rv-vol-range');
+    var enBtn  = stage.querySelector('.rv-enlarge-btn');
+    var slider = stage.querySelector('.rv-vol-slider');
+    var flashT = null;
+    var hideT  = null;
+    var soundMode = false;   /* sticky: has the user turned sound ON (drives the icon + slider),
+                                independent of the actual volume value (0 volume stays in sound mode) */
+
+    function applyVolState() {
+      stage.classList.toggle('is-unmuted', soundMode);
+      volBtn.setAttribute('aria-label', soundMode ? 'Mute' : 'Unmute');
+    }
+
+    /* idle-fade: controls (incl. the muted glyph) show, then fade after a few
+       seconds of no interaction. They stay while paused; reappear on hover. */
+    function scheduleHide(delay) {
+      if (hideT) clearTimeout(hideT);
+      hideT = setTimeout(function () { if (!video.paused) stage.classList.remove('rv-show'); }, delay);
+    }
+    function showCtrls(delay) {
+      stage.classList.add('rv-show');
+      scheduleHide(delay || 2800);
+    }
+
+
+    function togglePlay() {
+      if (video.paused) {
+        video.play().catch(function () {});
+        stage.classList.remove('is-paused');
+        center.dataset.s = 'flash-in';                     /* show play glyph, then fade */
+        requestAnimationFrame(function () { center.dataset.s = 'flash-out'; });
+        if (flashT) clearTimeout(flashT);
+        flashT = setTimeout(function () { if (center.dataset.s === 'flash-out') center.dataset.s = ''; }, 700);
+        showCtrls();
+      } else {
+        video.pause();
+        stage.classList.add('is-paused');                  /* CSS keeps controls shown */
+        center.dataset.s = 'paused';                       /* persistent pause glyph */
+      }
+    }
+
+    /* click the video surface (not the controls) toggles play/pause */
+    stage.addEventListener('click', function (e) {
+      if (e.target.closest('.rv-ctrl')) return;
+      togglePlay();
+    });
+    /* keep the state class in sync if playback changes by other means */
+    video.addEventListener('pause', function () { if (!video.ended) stage.classList.add('is-paused'); });
+    video.addEventListener('play',  function () { stage.classList.remove('is-paused'); });
+    /* reveal on hover/move, fade shortly after the pointer leaves */
+    stage.addEventListener('mouseenter', function () { showCtrls(); });
+    stage.addEventListener('mousemove',  function () { showCtrls(); });
+    stage.addEventListener('mouseleave', function () { scheduleHide(500); });
+
+    volBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (!soundMode) {
+        /* turn sound ON */
+        soundMode = true;
+        video.muted = false;
+        if (video.volume === 0) { video.volume = 1; }
+        range.value = Math.round(video.volume * 100);
+      } else {
+        /* back to muted state */
+        soundMode = false;
+        video.muted = true;
+      }
+      applyVolState();
+      showCtrls();
+    });
+    range.addEventListener('input', function (e) {
+      e.stopPropagation();
+      var v = (+range.value) / 100;
+      video.volume = v;
+      video.muted = false;          /* stay in sound mode even at 0 — 0 = silent, not muted state */
+      showCtrls();
+    });
+    if (slider) slider.addEventListener('click', function (e) { e.stopPropagation(); });
+
+    enBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (stage.classList.contains('is-enlarged')) closeRichEnlarge();
+      else openRichEnlarge(stage);
+    });
+
+    /* start muted (required for autoplay); slider primed at full. The muted icon
+       stays pinned (CSS keeps it visible while NOT in sound mode); other controls
+       show then fade after the idle delay. */
+    video.muted = true; range.value = 100;
+    applyVolState();
+    showCtrls();
+  }
+  function openRichEnlarge(stage) {
+    var lb = document.getElementById('rv-lightbox');
+    var frame = lb && lb.querySelector('.rv-lb-frame');
+    if (!lb || !frame) return;
+    var video = stage.querySelector('.rv-video');
+    var wasPaused = video ? video.paused : true;
+    stage.__home = stage.parentNode;
+    frame.appendChild(stage);
+    stage.classList.add('is-enlarged');
+    lb.classList.add('is-active');
+    document.body.classList.add('lightbox-open');
+    rvEnlarged = stage;
+    if (video && !wasPaused) video.play().catch(function () {});   /* reparenting can pause */
+  }
+  function closeRichEnlarge() {
+    var lb = document.getElementById('rv-lightbox');
+    if (rvEnlarged) {
+      var stage = rvEnlarged, video = stage.querySelector('.rv-video');
+      var wasPaused = video ? video.paused : true;
+      stage.classList.remove('is-enlarged');
+      if (stage.__home && stage.__home.isConnected) stage.__home.appendChild(stage);
+      if (video && !wasPaused) video.play().catch(function () {});
+    }
+    if (lb) lb.classList.remove('is-active');
+    document.body.classList.remove('lightbox-open');
+    rvEnlarged = null;
+  }
+  /* on navigation the proj-body is rebuilt; if a stage is currently detached
+     into the overlay, just stop + drop it so no audio leaks and no stale node. */
+  function resetRichEnlarge() {
+    var lb = document.getElementById('rv-lightbox');
+    if (lb) {
+      var frame = lb.querySelector('.rv-lb-frame');
+      if (frame) { var v = frame.querySelector('video'); if (v) v.pause(); frame.innerHTML = ''; }
+      lb.classList.remove('is-active');
+    }
+    rvEnlarged = null;
   }
 
   /* self-hosted videos autoplay muted; if the browser blocks autoplay (e.g. iOS
@@ -988,6 +1194,7 @@
     /* close any open image lightbox on navigation */
     closeLightbox();
     closeVideoLightbox();
+    resetRichEnlarge();
 
     /* collapse the responsive toolbar drawer on any navigation (clicking the
        logo / back / about while the drawer is expanded returns to the page AND

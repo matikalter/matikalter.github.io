@@ -147,6 +147,14 @@ modern — imagery gets center stage, interface stays quiet.
   video teardown. Also disables the site-wide right-click/context menu
   (contextmenu preventDefault) so imagery can't be trivially saved (paired
   with CSS -webkit-user-drag/-webkit-touch-callout guards on img/video).
+  Also owns the RICHVIDEO block (self-hosted MP4 with a custom minimal control
+  set — see the `richvideo` block type): richVideoInnerHTML() builds the markup,
+  setupRichVideo() wires each .rv-stage (tap-to-pause with a centre glyph;
+  sticky sound-mode mute toggle + a hover-reveal vertical volume slider;
+  bottom-right enlarge that MOVES the whole stage into #rv-lightbox and back so
+  its controls work identically inline + enlarged). Controls idle-fade after a
+  few seconds; the muted glyph stays PINNED until sound is turned on. resetRichEnlarge()
+  drops a detached stage on navigation so no audio leaks.
 - js/adaptive-invert.js — PER-PORTION invert-over-images for the home
   overlay text that isn't the title (mini description + regular filter
   labels). Only the part of the text overlapping a DARK thumbnail inverts
@@ -191,7 +199,14 @@ modern — imagery gets center stage, interface stays quiet.
   vanilla mobile Tweaks panel. Reads the SAME shared data globals as desktop
   (projects / tagDefs / filterDefs / BIO_LONG / LOGO). Runs ONLY when
   window.__MOBILE__ is true; desktop portfolio.js + the React tweaks panel
-  gate OFF in that mode.
+  gate OFF in that mode. Ports the RICHVIDEO block to touch
+  (richVideoBlockHTML / setupMobileRichVideo / initMobileRichVideos): tap-to-
+  pause centre glyph, a bottom-left MUTE TOGGLE (no volume slider — iOS ignores
+  JS `video.volume`, so only muted flips; hardware buttons set the level), and
+  a bottom-right ENLARGE that moves the stage into a fullscreen #m-rv-lightbox
+  overlay (so a landscape clip can be rotated to view full-size). Same idle-fade
+  + pinned-muted-glyph behaviour as desktop; resetMobileRichEnlarge() clears the
+  overlay on nav.
 - css/mobile.css — mobile stylesheet (activated by <html>.is-mobile). All
   --m-* vars are set by mobile-app.js from the m* tweak keys; colours / box /
   leading / tracking reuse the shared desktop CSS vars.
@@ -241,8 +256,8 @@ MOBILE-APP (js/mobile-app.js) — independent layer, shares DATA not code:
   Regular/Boxed style carries over) at the top, then a DIVIDER (Tweak mDivShow
   toggles it via VISIBILITY so the SPACE stays either way; even space above +
   below from the single mDivSpace slider), then content blocks in ONE column.
-  Blocks reuse the desktop block types (video embed / localvideo / image /
-  text / divider / row→stacked / hscroll); playground & posters projects
+  Blocks reuse the desktop block types (video embed / richvideo / localvideo /
+  image / text / divider / row→stacked / hscroll); playground & posters projects
   render as a simple full-width vertical media stack.
   VIDEO HANDLING (mobile-specific, differs from desktop):
     * iframe EMBEDS (YouTube/Vimeo) are LAZY-MOUNTED — iOS caps simultaneous
@@ -272,6 +287,10 @@ MOBILE-APP (js/mobile-app.js) — independent layer, shares DATA not code:
       (invisible). Mobile IGNORES the desktop `ratio` on localvideo (it exists
       to equalize heights in side-by-side desktop rows; single-column mobile
       wants native aspect, no letterbox).
+    * richvideo renders the custom touch control set (tap-to-pause centre glyph,
+      bottom-left mute toggle — NO slider, bottom-right enlarge → fullscreen
+      #m-rv-lightbox). Like localvideo it's a native muted-loop <video>; unlike
+      the desktop build it has no volume slider (iOS ignores JS `video.volume`).
 - ABOUT: single column — long bio (h4), meta sections (titles h3, items in
   Labels style with trailing detail in --text-faint), Vimeo reel at the
   bottom (extra top margin for even spacing).
@@ -442,8 +461,11 @@ omit = no button), hidden.
   bottom; the `content` array IS the ordering (no per-page layout flag):
     { type:'video', src:'<embed url>' }           // full-width 16:9
     { type:'video', src:'…', full:false, ratio:'1/1' } // one column, custom ratio
+    { type:'richvideo', src:'clip.mp4' }          // self-hosted MP4 + custom controls
+    { type:'richvideo', src:'clip.mp4', ratio:'16/9' } // lock cell ratio (contain)
     { type:'localvideo', src:'clip.mp4', full:true } // self-hosted MP4, full-width
     { type:'localvideo', src:'clip.mp4', ratio:'1/1' } // lock cell ratio (contain)
+    { type:'spacer' }                             // empty 1-col cell (layout filler)
     { type:'image', src:'file.jpg' }              // one grid column
     { type:'image', src:'file.jpg', full:true }   // spans both columns
     { type:'image', src:'file.jpg', ratio:'1/1' } // lock cell ratio, contain-fit
@@ -462,6 +484,28 @@ omit = no button), hidden.
     in one grid column; optional `ratio` (e.g. '1/1') overrides 16:9. All
     embeds have an "enlarge" button (bottom-right on hover) opening a video
     lightbox — needed because sandboxed iframes block native fullscreen.
+  - richvideo block: the SAME self-hosted MP4 as localvideo (`assets/<id>/<src>`,
+    autoplay+muted+loop, H.264/yuv420p/faststart) but with a CUSTOM MINIMAL
+    CONTROL SET — the "video WITH sound + controls" method (localvideo is the
+    "silent, no-controls" method). On top of the <video> we draw our own:
+    tap-anywhere play/pause (centre glyph), a bottom-left VOLUME control (a muted
+    glyph that STAYS pinned on load → tap unmutes + swaps to a sound glyph;
+    hovering the icon reveals a vertical volume slider that stays present even at
+    0 volume and fades on unhover), and a bottom-right ENLARGE toggle. Sound-mode
+    is STICKY (a click-set flag, independent of the volume value) so sliding to 0
+    doesn't collapse the slider/icon. `full:true` spans both cols; `ratio` (e.g.
+    '1/1', '16/9') locks a contain-fit box to match a neighbour; `col:1|2` forces
+    the grid column; `mt`/`mb` (px) add space. Enlarge MOVES the whole .rv-stage
+    into #rv-lightbox (a blurred-backdrop overlay) so every control keeps working
+    enlarged; click the backdrop or Esc to close and it returns to its grid cell.
+    Wired by initRichVideos()/setupRichVideo(); NOT ported cosmetically — mobile
+    has its own touch build (see Mobile version). On iOS the volume SLIDER is
+    absent (JS volume is ignored there) — mobile gets a mute toggle instead.
+  - spacer block: an empty single-column cell that renders nothing. Use it to
+    occupy a grid slot so the FOLLOWING block lands in the other column (and
+    grid-auto-flow:dense can't backfill the hole with a later block) — e.g. to
+    force a richvideo directly under a specific neighbour without unpairing the
+    blocks below. `full:true` makes it a full-width spacer.
   - localvideo block: a SELF-HOSTED MP4 (`assets/<id>/<src>`) in a native
     <video> — autoplay+muted+loop like a GIF but far smaller/sharper, with
     NO native controls. `full:true` spans both cols at natural height (no
@@ -607,7 +651,11 @@ equal the clickable bounds; the enlarged clip autoplays muted+looping
 with no controls. (Embeds no longer enlarge — they use native fullscreen —
 so the old embed playback-sync plumbing and js/video-sync.js + the Vimeo
 Player API script have been REMOVED. closeVideoLightbox() now only serves
-localvideo; openVideoLightbox/replaceLightboxIframe are gone.)
+localvideo; openVideoLightbox/replaceLightboxIframe are gone.) RICHVIDEO blocks
+use their OWN enlarge overlay (#rv-lightbox desktop / #m-rv-lightbox mobile):
+instead of cloning media, the whole .rv-stage is MOVED into the overlay and back
+so the same <video> element + control listeners work identically inline and
+enlarged; click the blurred backdrop or Esc to close.
 
 ## Page-exit video teardown
 Hiding a view with display:none does NOT stop its iframes (audio kept

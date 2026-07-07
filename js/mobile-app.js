@@ -265,6 +265,141 @@
     updateMobileEmbeds();   // initial pass (top-of-page embeds)
   }
 
+  /* ── RICH VIDEO (mobile) ──────────────────────────────────────────────
+     Self-hosted MP4 with a minimal touch control set: tap the video to
+     pause/play (centre glyph), a bottom-left MUTE TOGGLE (no slider — iOS
+     ignores JS volume, so we only toggle muted; the phone's hardware buttons
+     set the level), and a bottom-right ENLARGE that moves the whole stage into
+     a fullscreen overlay (so landscape clips can be rotated to view full-size).
+     Controls work identically inline and enlarged. */
+  var M_RV_ICONS = {
+    muted:   '<svg class="m-rv-ic-muted" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3z"></path><path d="M16.5 9.5l5 5m0-5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>',
+    vol:     '<svg class="m-rv-ic-vol" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3z"></path><path d="M16 8.5a5 5 0 0 1 0 7M18.6 6a9 9 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>',
+    expand:  '<svg class="m-rv-ic-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg>',
+    compress:'<svg class="m-rv-ic-compress" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"></path></svg>',
+    pauseC:  '<svg class="m-rv-ic-pc" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect></svg>',
+    playC:   '<svg class="m-rv-ic-plc" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>'
+  };
+  function richVideoBlockHTML(b, pid) {
+    return '<div class="m-block m-rv">'
+         +   '<div class="m-rv-stage">'
+         +     '<video class="m-rv-video" src="' + assetURL(pid, encodeURIComponent(b.src)) + '" autoplay muted loop playsinline preload="metadata"></video>'
+         +     '<div class="m-rv-center" data-s="" aria-hidden="true">' + M_RV_ICONS.pauseC + M_RV_ICONS.playC + '</div>'
+         +     '<button class="m-rv-btn m-rv-mute" type="button" aria-label="Unmute">' + M_RV_ICONS.muted + M_RV_ICONS.vol + '</button>'
+         +     '<button class="m-rv-btn m-rv-enlarge" type="button" aria-label="Enlarge">' + M_RV_ICONS.expand + M_RV_ICONS.compress + '</button>'
+         +   '</div>'
+         + '</div>';
+  }
+
+  var mRvEnlarged = null;
+  function mRvLightbox() {
+    var lb = document.getElementById('m-rv-lightbox');
+    if (!lb) {
+      lb = document.createElement('div');
+      lb.id = 'm-rv-lightbox';
+      lb.className = 'm-rv-lightbox';
+      lb.innerHTML = '<div class="m-rv-lb-backdrop"></div><div class="m-rv-lb-frame"></div>';
+      (document.getElementById('mobile-app') || document.body).appendChild(lb);
+      lb.querySelector('.m-rv-lb-backdrop').addEventListener('click', closeMobileRichEnlarge);
+    }
+    return lb;
+  }
+  function setupMobileRichVideo(stage) {
+    if (stage.__mrv) return; stage.__mrv = true;
+    var video   = stage.querySelector('.m-rv-video');
+    var center  = stage.querySelector('.m-rv-center');
+    var muteBtn = stage.querySelector('.m-rv-mute');
+    var enBtn   = stage.querySelector('.m-rv-enlarge');
+    var flashT = null, hideT = null;
+
+    function scheduleHide(delay) {
+      if (hideT) clearTimeout(hideT);
+      hideT = setTimeout(function () { if (!video.paused) stage.classList.remove('rv-show'); }, delay);
+    }
+    function showCtrls(delay) { stage.classList.add('rv-show'); scheduleHide(delay || 3000); }
+    function reflectMute() {
+      stage.classList.toggle('is-unmuted', !video.muted);
+      muteBtn.setAttribute('aria-label', video.muted ? 'Unmute' : 'Mute');
+    }
+    function togglePlay() {
+      if (video.paused) {
+        video.play().catch(function () {});
+        stage.classList.remove('is-paused');
+        center.dataset.s = 'flash-in';
+        requestAnimationFrame(function () { center.dataset.s = 'flash-out'; });
+        if (flashT) clearTimeout(flashT);
+        flashT = setTimeout(function () { if (center.dataset.s === 'flash-out') center.dataset.s = ''; }, 700);
+        showCtrls();
+      } else {
+        video.pause();
+        stage.classList.add('is-paused');
+        center.dataset.s = 'paused';
+      }
+    }
+    stage.addEventListener('click', function (e) {
+      if (e.target.closest('.m-rv-btn')) return;
+      togglePlay();
+    });
+    video.addEventListener('pause', function () { if (!video.ended) stage.classList.add('is-paused'); });
+    video.addEventListener('play',  function () { stage.classList.remove('is-paused'); });
+    muteBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      video.muted = !video.muted;
+      reflectMute();
+      showCtrls();
+    });
+    enBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (stage.classList.contains('is-enlarged')) closeMobileRichEnlarge();
+      else openMobileRichEnlarge(stage);
+    });
+    video.muted = true;
+    reflectMute();
+    showCtrls();
+  }
+  function initMobileRichVideos() {
+    var stages = document.querySelectorAll('.m-rv-stage');
+    Array.prototype.forEach.call(stages, function (s) { setupMobileRichVideo(s); });
+  }
+  function openMobileRichEnlarge(stage) {
+    var lb = mRvLightbox();
+    var frame = lb.querySelector('.m-rv-lb-frame');
+    var video = stage.querySelector('.m-rv-video');
+    var wasPaused = video ? video.paused : true;
+    stage.__home = stage.parentNode;
+    frame.appendChild(stage);
+    stage.classList.add('is-enlarged');
+    lb.classList.add('is-active');
+    document.body.classList.add('m-lightbox-open');
+    mRvEnlarged = stage;
+    if (video && !wasPaused) video.play().catch(function () {});
+  }
+  function closeMobileRichEnlarge() {
+    var lb = document.getElementById('m-rv-lightbox');
+    if (mRvEnlarged) {
+      var stage = mRvEnlarged, video = stage.querySelector('.m-rv-video');
+      var wasPaused = video ? video.paused : true;
+      stage.classList.remove('is-enlarged');
+      if (stage.__home && stage.__home.isConnected) stage.__home.appendChild(stage);
+      if (video && !wasPaused) video.play().catch(function () {});
+    }
+    if (lb) lb.classList.remove('is-active');
+    document.body.classList.remove('m-lightbox-open');
+    mRvEnlarged = null;
+  }
+  /* on navigation the proj-body is rebuilt; if a stage is detached into the
+     overlay, stop + drop it so no audio leaks and no stale node lingers. */
+  function resetMobileRichEnlarge() {
+    var lb = document.getElementById('m-rv-lightbox');
+    if (lb) {
+      var frame = lb.querySelector('.m-rv-lb-frame');
+      if (frame) { var v = frame.querySelector('video'); if (v) v.pause(); frame.innerHTML = ''; }
+      lb.classList.remove('is-active');
+    }
+    document.body.classList.remove('m-lightbox-open');
+    mRvEnlarged = null;
+  }
+
   /* ── content block → single-column HTML ── */
   function blockHTML(b, pid) {
     if (!b || !b.type) return '';
@@ -276,6 +411,9 @@
          equalize heights in side-by-side rows) — render at natural aspect,
          no letterbox box, no black bg. */
       return '<div class="m-block m-video"><video src="' + assetURL(pid, encodeURIComponent(b.src)) + '" autoplay muted loop playsinline preload="metadata"></video></div>';
+    }
+    if (b.type === 'richvideo') {
+      return richVideoBlockHTML(b, pid);
     }
     if (b.type === 'image') {
       var ist = '';
@@ -486,6 +624,7 @@
     viewEl.innerHTML = head + '<div class="m-divider m-head-divider"></div><div class="m-proj-body">' + body + '</div>';
     positionView();
     initMobileEmbeds();
+    initMobileRichVideos();
     window.scrollTo(0, 0);
   }
 
@@ -547,6 +686,7 @@
   }
   function applyRoute() {
     teardownEmbeds();
+    resetMobileRichEnlarge();
     var r = parseHash();
     if (r.view === 'about') { renderAbout(); return; }
     if (r.view === 'project') {

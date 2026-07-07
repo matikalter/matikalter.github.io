@@ -298,6 +298,74 @@
 .m-block.m-video {
   position: relative; width: 100%; line-height: 0; background: transparent;
 }
+
+/* ── RICH VIDEO (mobile) — self-hosted MP4 with minimal touch controls ── */
+.m-block.m-rv { position: relative; width: 100%; line-height: 0; background: transparent; }
+.m-rv-stage { position: relative; line-height: 0; }
+.m-rv-video { display: block; width: 100%; height: auto; }
+.m-rv-btn {
+  position: absolute; z-index: 3; bottom: 12px;
+  width: 40px; height: 40px; padding: 0; border: 0; margin: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.55); color: #fff; border-radius: 6px;
+  -webkit-tap-highlight-color: transparent;
+  opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+}
+.m-rv-btn svg { width: 19px; height: 19px; }
+.m-rv-mute { left: 12px; }
+.m-rv-enlarge { right: 12px; }
+/* controls reveal via the idle-timer class or while paused, then fade */
+.m-rv-stage.rv-show .m-rv-btn,
+.m-rv-stage.is-paused .m-rv-btn { opacity: 1; pointer-events: auto; }
+/* the muted button stays pinned until sound is turned on (then it idle-fades) */
+.m-rv-stage:not(.is-unmuted) .m-rv-mute { opacity: 1; pointer-events: auto; }
+/* volume glyph: exactly one shows — muted default, sound glyph when unmuted */
+.m-rv-ic-muted, .m-rv-ic-vol { display: block; }
+.m-rv-ic-vol { display: none; }
+.m-rv-stage.is-unmuted .m-rv-ic-vol { display: block; }
+.m-rv-stage.is-unmuted .m-rv-ic-muted { display: none; }
+/* enlarge glyph: expand when small, compress when enlarged */
+.m-rv-ic-expand, .m-rv-ic-compress { display: block; }
+.m-rv-ic-compress { display: none; }
+.m-rv-stage.is-enlarged .m-rv-ic-expand { display: none; }
+.m-rv-stage.is-enlarged .m-rv-ic-compress { display: block; }
+/* centre play/pause feedback glyph */
+.m-rv-center {
+  position: absolute; inset: 0; margin: auto; z-index: 4;
+  width: 62px; height: 62px; border-radius: 50%;
+  background: rgba(0,0,0,0.5); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none; opacity: 0;
+}
+.m-rv-center svg { width: 26px; height: 26px; }
+.m-rv-center .m-rv-ic-plc { margin-left: 3px; }
+.m-rv-center .m-rv-ic-pc, .m-rv-center .m-rv-ic-plc { display: none; }
+.m-rv-center[data-s="paused"] { opacity: 1; transition: opacity 0.2s ease; }
+.m-rv-center[data-s="paused"] .m-rv-ic-pc { display: block; }
+.m-rv-center[data-s="flash-in"] { opacity: 1; transition: none; }
+.m-rv-center[data-s="flash-out"] { opacity: 0; transition: opacity 0.6s ease; }
+.m-rv-center[data-s="flash-in"] .m-rv-ic-plc,
+.m-rv-center[data-s="flash-out"] .m-rv-ic-plc { display: block; }
+
+/* fullscreen enlarge overlay — the whole stage is moved in here so a landscape
+   clip can be viewed full-size by rotating the phone. */
+.m-rv-lightbox {
+  position: fixed; inset: 0; z-index: 400;
+  display: none; align-items: center; justify-content: center;
+}
+.m-rv-lightbox.is-active { display: flex; }
+.m-rv-lb-backdrop {
+  position: absolute; inset: 0;
+  background: color-mix(in srgb, var(--bg, #fff) 55%, transparent);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+.m-rv-lb-frame { position: relative; z-index: 1; line-height: 0; }
+.m-rv-lb-frame .m-rv-stage.is-enlarged { position: relative; }
+.m-rv-lb-frame .m-rv-video {
+  width: auto; height: auto; object-fit: contain;
+  max-width: 100vw; max-height: 100vh;
+}
+body.m-lightbox-open { overflow: hidden; }
 .m-block-text .m-bt-title {
   font-family: var(--font); font-size: var(--h5-size, 18px);
   font-weight: 500; line-height: 1.3; color: var(--text, #111);
