@@ -187,6 +187,9 @@
      views (absent on project pages). Position/size/align/visibility all driven
      by CSS vars from the "Toolbar" tweaks. */
   function gifHTML() {
+    /* the hero image is now a 4-clip cycling sequence (js/hero-cycle.js);
+       fall back to the plain Jumpdude gif if that script hasn't loaded. */
+    if (window.HeroCycle) return window.HeroCycle.gifHTML();
     return '<div class="lp-gif"><a href="#/project/playground" aria-label="View Playground"><img src="assets/playground/Jumpdude-b.gif" alt="" draggable="false"><span class="lp-gif-hot"></span></a></div>';
   }
 
@@ -263,6 +266,7 @@
     renderTitleStack({ idx: 0, frac: 0, idxFloat: 0 });
     /* seed the mini-info from whatever is currently centered */
     renderMiniInfo(currentHomeActiveId ? getProjectById(currentHomeActiveId) : null);
+    if (window.HeroCycle) window.HeroCycle.init();
   }
 
   /* About: left panel mirrors the HOME view exactly — logo at --logo-y and the
@@ -277,6 +281,7 @@
                       '<span style="font-size:14px;font-weight:300;line-height:1">&#215;</span>&nbsp;close')
       + dividerHTML()
       + gifHTML();
+    if (window.HeroCycle) window.HeroCycle.init();
   }
 
   /* Project: title + year + tags + description */

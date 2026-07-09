@@ -71,7 +71,9 @@
     mHoldTextY: 50, mHoldAlign: 'center', mLabelAlign: 'left',
     mFilterSize: 15, mFilterAlign: 'left', mFilterGap: 0.5,
     mLogoColor: '#111111', mLogoTapColor: '#8089ef',
-    mDivShow: true, mDivSpace: 30
+    mDivShow: true, mDivSpace: 30,
+    mShapeShow: true, mShapeW: 48, mShapeH: 24, mShapeRadius: 0,
+    mShapeColor: '#ffffff', mShapeOpacity: 1, mShapeBlur: 0, mShapeEdgeBlur: 0
   };
   function tv(k) { return (T[k] != null) ? T[k] : MDEF[k]; }
 
@@ -85,6 +87,14 @@
     s.setProperty('--m-logo-tap-color', tv('mLogoTapColor'));
     s.setProperty('--m-head-div-vis', tv('mDivShow') ? 'visible' : 'hidden');
     s.setProperty('--m-head-div-space', tv('mDivSpace') + 'px');
+    s.setProperty('--m-shape-display', tv('mShapeShow') ? 'block' : 'none');
+    s.setProperty('--m-shape-w', tv('mShapeW') + 'px');
+    s.setProperty('--m-shape-h', tv('mShapeH') + 'px');
+    s.setProperty('--m-shape-radius', (tv('mShapeRadius') / 2) + '%');
+    s.setProperty('--m-shape-color', tv('mShapeColor'));
+    s.setProperty('--m-shape-opacity', tv('mShapeOpacity'));
+    s.setProperty('--m-shape-blur', tv('mShapeBlur') + 'px');
+    s.setProperty('--m-shape-edge-blur', tv('mShapeEdgeBlur') + 'px');
     s.setProperty('--m-feed-gap', tv('mFeedGap') + 'px');
     s.setProperty('--m-title-size', tv('mTitleSize') + 'px');
     s.setProperty('--m-proj-title-size', tv('mProjTitleSize') + 'px');
@@ -153,7 +163,7 @@
     app = document.getElementById('mobile-app');
     if (!app) { app = document.createElement('div'); app.id = 'mobile-app'; document.body.appendChild(app); }
     app.innerHTML =
-        '<div class="m-logo" id="m-logo"><span class="m-logo-text">' + esc(logoText()) + '</span></div>'
+        '<div class="m-logo" id="m-logo"><div class="m-logo-wrap"><div class="m-logo-shape-blur" id="m-logo-shape"></div><div class="m-logo-shape-fill"></div><span class="m-logo-text">' + esc(logoText()) + '</span></div></div>'
       + '<div class="m-view" id="m-view"></div>';
     viewEl = document.getElementById('m-view');
     document.getElementById('m-logo').addEventListener('click', function () { navTo('#/'); });
@@ -745,13 +755,22 @@
       + color('mLogoColor', 'Idle color', ['#111111', '#8089ef', '#888888', '#ffffff'])
       + color('mLogoTapColor', 'Tap color', ['#8089ef', '#111111', '#888888', '#ffffff']);
 
+    var shapeSect = toggle('mShapeShow', 'Show')
+      + slider('mShapeW', 'Width', 0, 200, 1)
+      + slider('mShapeH', 'Height', 0, 100, 1)
+      + slider('mShapeRadius', 'Roundness', 0, 100, 1)
+      + color('mShapeColor', 'Color', ['#ffffff', '#111111', '#8089ef', '#f2f2f2'])
+      + slider('mShapeOpacity', 'Opacity', 0, 1, 0.05)
+      + slider('mShapeBlur', 'Blur (content behind)', 0, 30, 1)
+      + slider('mShapeEdgeBlur', 'Edge blur', 0, 20, 1);
+
     var filterSect = slider('mFilterSize', 'Size', 11, 26, 1)
       + seg('mFilterAlign', 'Align', [{ v: 'left', l: 'Left' }, { v: 'center', l: 'Center' }, { v: 'right', l: 'Right' }])
       + slider('mFilterGap', 'Spacing', 0, 1, 0.05);
 
     var feedSect = seg('mFeedMode', 'Label mode', [{ v: 'hold', l: 'On hold (A)' }, { v: 'above', l: 'Above (B)' }])
       + slider('mFeedGap', 'Gap between', 16, 120, 2)
-      + slider('mTitleSize', 'Title size', 14, 34, 1)
+      + slider('mTitleSize', 'Title size', 14, 70, 1)
       + slider('mMiniSize', 'Mini size', 11, 24, 1)
       + slider('mTagsSize', 'Tags size', 9, 20, 1);
 
@@ -765,7 +784,7 @@
 
     var projectSect = toggle('mDivShow', 'Divider')
       + slider('mDivSpace', 'Divider space', 0, 80, 1)
-      + slider('mProjTitleSize', 'Title size', 20, 64, 1);
+      + slider('mProjTitleSize', 'Title size', 20, 70, 1);
 
     panel.innerHTML =
         '<div class="m-tweaks-head"><h3>Mobile Tweaks</h3>'
@@ -774,6 +793,7 @@
       +   '<button class="m-tweaks-close" id="m-tw-close">×</button></div></div>'
       + '<div class="m-tweaks-body">'
       +   sect('Logo', logoSect, true)
+      +   sect('Logo shape', shapeSect, false)
       +   sect('Home feed', feedSect, true)
       +   sect('Filters', filterSect, false)
       +   sect('Hold labels (A)', holdSect, false)

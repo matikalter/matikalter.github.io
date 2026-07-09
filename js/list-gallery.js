@@ -599,11 +599,21 @@
     var rR = row.getBoundingClientRect();
     /* which edge of the title to anchor to */
     var titleX = (window.MARKER_LINE_EDGE === 'right') ? rR.right : rR.left;
-    /* connect to whichever side of the marker faces the title */
-    var markerX = (titleX <= mR.left) ? mR.left : mR.right;
+    /* connect to the marker's CENTER (not its edge) so the line runs underneath
+       the glyph with no visible gap — glyphs like ▶ don't fill their own box
+       edge-to-edge, so stopping at mR.left/right left a sliver showing. */
+    var markerX = mR.left + mR.width / 2 + (titleX <= mR.left ? 2 : -2);
     var x1 = Math.min(titleX, markerX);
     var x2 = Math.max(titleX, markerX);
     var y  = mR.top + mR.height / 2;
+    /* Round to the nearest whole CSS pixel before writing it. A fractional
+       top (from getBoundingClientRect at a non-integer effective zoom, e.g.
+       windowed/Present mode) otherwise anti-aliases the hairline across two
+       rows, reading as thicker/blurrier than the panel's static border-right
+       (which the browser always hints crisply). Pairing this with border-top
+       (see CSS) instead of a filled height:1px box gives the same crisp,
+       always-minimum-thickness rendering as that divider. */
+    y = Math.round(y);
     line.style.left  = x1 + 'px';
     line.style.width = Math.max(0, x2 - x1) + 'px';
     line.style.top   = y + 'px';

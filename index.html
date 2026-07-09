@@ -314,13 +314,32 @@
     -webkit-mask-image: var(--gif-mask-hover);
             mask-image: var(--gif-mask-hover);
   }
-  .lp-gif img {
+  /* stack of media layers for the hero cycle (js/hero-cycle.js): sized to a
+     square (all 4 cycle clips are ratio 1.0), each layer crossfades via
+     opacity so swapping the current clip on unhover reads as seamless. */
+  .lp-gif-stack {
+    position: relative;
     width: var(--gif-size, 130px);
-    height: auto;
+    aspect-ratio: 1 / 1;
+  }
+  .lp-gif-media {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
     display: block;
     pointer-events: none;
     user-select: none;
+    opacity: 0;
+    transition: opacity var(--gif-cycle-dur, 600ms) ease;
   }
+  .lp-gif-media.is-current { opacity: 1; }
+  /* LTX_Shapes has a smaller native subject than the other 3 clips at the
+     same frame size — bumped 115% so it reads at a comparable scale; the
+     shared --gif-size control still scales it uniformly with the rest since
+     this is a multiplier on top, not a replacement. */
+  .lp-gif-media.lp-gif-big { transform: scale(1.15); }
 
   /* Active-project title in left panel — shows the project currently centered in the list.
      Fixed min-height reserves space so tags never shift. */
@@ -1415,8 +1434,8 @@
      both the marker's horizontal glide and the title stack's position. */
   .list-marker-line {
     position: fixed;
-    height: 1px;
-    background: var(--marker-color, #111);
+    height: 0;
+    border-top: 1px solid var(--marker-color, #111);
     pointer-events: none;
     opacity: 0;
     z-index: 5;
@@ -1913,13 +1932,13 @@
     "h1Weight": 500,
     "h1Leading": 1.4,
     "h1Tracking": -0.01,
-    "h3Size": 20,
+    "h3Size": 23,
     "h3Weight": 400,
-    "h3Leading": 0.95,
+    "h3Leading": 1.1,
     "h3Tracking": 0,
-    "h4Size": 20,
+    "h4Size": 23,
     "h4Weight": 400,
-    "h4Leading": 1.5,
+    "h4Leading": 1.4,
     "h4Tracking": 0,
     "h5Size": 22,
     "h5Weight": 400,
@@ -1929,11 +1948,11 @@
     "h2Weight": 500,
     "h2Leading": 1.3,
     "h2Tracking": -0.01,
-    "bioSize": 16,
+    "bioSize": 23,
     "bioWeight": 400,
     "bioLeading": 1.4,
     "bioTracking": 0,
-    "miniSize": 22,
+    "miniSize": 23,
     "miniWeight": 400,
     "miniLeading": 1.4,
     "miniTracking": 0,
@@ -1966,26 +1985,27 @@
     "logoY": 31,
     "logoAlign": "center",
     "socialY": 112,
-    "bioY": 172,
+    "bioY": 148,
     "bioShow": true,
     "bioAlign": "left",
-    "bioShort": "Hi! I'm a visual designer and art directior creating 2D\/3D art and animation for games and interactive media.",
-    "socialDivider": true,
+    "bioShort": "is a visual designer specializing in 2D\/3D art, art direction, and animation for games and interactive media.",
+    "socialDivider": false,
     "dividerY": 154,
     "gifShow": true,
-    "gifY": 32,
-    "gifSize": 360,
+    "gifY": 23,
+    "gifSize": 399,
     "gifAlign": "center",
     "gifHoverScale": 1,
-    "gifBlur": 24,
+    "gifBlur": 8,
     "gifHue": 0,
     "gifBlurHover": 0,
     "gifInvertHover": false,
     "gifHueHover": 0,
-    "gifFade": 30,
-    "gifRound": 30,
-    "gifFadeHover": 0,
+    "gifFade": 12,
+    "gifRound": 0,
+    "gifFadeHover": 12,
     "gifRoundHover": 0,
+    "gifCycleDur": 500,
     "listColFrac": 0.4,
     "listColPos": 0.88,
     "listAlignIn": "center",
@@ -2350,6 +2370,7 @@
     "aboutSplit": 40,
     "aboutTextMaxW": 0,
     "aboutMetaMaxW": 0,
+    "aboutText": "I shape characters, environments, and animated narratives with humor, stylistic play, and a light touch on complex topics.\n\nI've art directed and created 2D & 3D art for games, mentored game design students, and created motion graphics across tech, music, and design. I'm open to new projects and collaborations. \u003ca href=\"mailto:mkalterr@gmail.com\">Say hi!\u003c\/a>",
     "tbRefW": 0,
     "tbToggleSize": 44,
     "tbToggleX": 27,
@@ -2371,11 +2392,11 @@
     "tbtoggleHovOutline": "#8089ef",
     "tbtoggleHovText": "#8089ef",
     "tbtoggleHovFill": "#00000000",
-    "mLogoSize": 30,
+    "mLogoSize": 25,
     "mLogoAlign": "center",
     "mFeedMode": "above",
     "mFeedGap": 30,
-    "mTitleSize": 30,
+    "mTitleSize": 40,
     "mProjTitleSize": 40,
     "mMiniSize": 15,
     "mTagsSize": 12,
@@ -2388,10 +2409,18 @@
     "mFilterSize": 16,
     "mFilterAlign": "center",
     "mFilterGap": 1,
-    "mLogoColor": "#8089ef",
-    "mLogoTapColor": "#111111",
+    "mLogoColor": "#111111",
+    "mLogoTapColor": "#8089ef",
     "mDivShow": true,
-    "mDivSpace": 33
+    "mDivSpace": 33,
+    "mShapeShow": true,
+    "mShapeW": 22,
+    "mShapeH": 8,
+    "mShapeRadius": 0,
+    "mShapeColor": "#ffffff",
+    "mShapeOpacity": 0.5,
+    "mShapeBlur": 16,
+    "mShapeEdgeBlur": 0
   }/*EDITMODE-END*/;
 
   /* Apply current tweak values to CSS variables + JS globals + rebuild any
@@ -2727,6 +2756,10 @@
       gifMask(t.gifFadeHover != null ? t.gifFadeHover : 40, t.gifRoundHover != null ? t.gifRoundHover : 100));
     r.setProperty('--gif-justify',
       t.gifAlign === 'center' ? 'center' : (t.gifAlign === 'right' ? 'flex-end' : 'flex-start'));
+    /* hero-cycle crossfade duration (js/hero-cycle.js reads the JS global for
+       its cleanup timer; the CSS var drives the actual opacity transition) */
+    r.setProperty('--gif-cycle-dur', (t.gifCycleDur != null ? t.gifCycleDur : 600) + 'ms');
+    window.HERO_CYCLE_DUR = (t.gifCycleDur != null ? t.gifCycleDur : 600);
     /* custom project order (array of ids; empty = natural array order) */
     window.PROJECT_ORDER = (t.projectOrder && t.projectOrder.length) ? t.projectOrder : null;
     /* per-project hide map { id: true } from the Projects tweaks section */
@@ -2819,6 +2852,17 @@
     /* 0 = no cap (full column width) */
     r.setProperty('--about-text-maxw', (t.aboutTextMaxW ? t.aboutTextMaxW + 'px' : 'none'));
     r.setProperty('--about-meta-maxw', (t.aboutMetaMaxW ? t.aboutMetaMaxW + 'px' : 'none'));
+    /* editable about-page long bio (empty = the hardcoded BIO_LONG default).
+       .about-bio has white-space:pre-line, so just press Enter for line/
+       paragraph breaks. LINKS: type a raw anchor tag, e.g.
+       <a href="mailto:mkalterr@gmail.com">Say hi!</a> — it renders live and
+       picks up the highlight color. That's how the "Say hi!" link is kept;
+       add more <a href="…">label</a> tags anywhere in the text. */
+    if (typeof window.__bioLongDefault === 'undefined') window.__bioLongDefault = window.BIO_LONG;
+    var __aboutRaw = (t.aboutText != null && t.aboutText !== '') ? t.aboutText : window.__bioLongDefault;
+    window.BIO_LONG = String(__aboutRaw);
+    var __aboutEl = document.getElementById('about-bio-text');
+    if (__aboutEl) __aboutEl.innerHTML = window.BIO_LONG;
 
     /* "All work" back button: vertical offset (px from page bottom) + alignment.
        Update any live button immediately (it's not a gallery-rebuild key). */
@@ -3750,6 +3794,7 @@
 <script src="js/adaptive-invert.js"></script>
 <script src="js/playground-gallery.js"></script>
 <script src="js/posters-gallery.js"></script>
+<script src="js/hero-cycle.js"></script>
 <script src="js/portfolio.js"></script>
 <script src="js/mobile-app.js"></script>
 

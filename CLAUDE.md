@@ -44,10 +44,15 @@ modern — imagery gets center stage, interface stays quiet.
   Toggled live by the "Infinite scroll" Tweak. The center marker can sit
   on the LEFT (default) or RIGHT of the active thumb (MARKER_ALIGN; the
   gap shifts to the chosen side), and an OPTIONAL 1px connector line
-  (MARKER_LINE_SHOW / MARKER_LINE_EDGE) runs from the marker to the
-  left/right edge of the active title in the title stack — drawn each
-  frame on #list-marker-line (position:fixed) by updateMarkerLine() so
-  it tracks both the marker glide and the title-stack position.
+  (MARKER_LINE_SHOW / MARKER_LINE_EDGE) runs from the marker's CENTER (+/-2px
+  further in, so it tucks under the glyph with no gap) to the left/right edge
+  of the active title in the title stack — drawn each frame on
+  #list-marker-line (position:fixed) by updateMarkerLine() so it tracks both
+  the marker glide and the title-stack position. Rendered as height:0 +
+  border-top (not a filled height:1px box) with its Y rounded to the nearest
+  whole CSS pixel before writing — matching the crisp always-1px rendering of
+  the panel's static border-right instead of anti-aliasing thicker at
+  non-integer zoom (windowed/Present mode).
 - js/gallery-display.js — ALTERNATE home thumbnail layout (List ⇄ Gallery,
   toggled by the top-right display-switch button; mode persists in
   localStorage as `displayMode`). A multi-column ROW-MAJOR grid: project 1
@@ -142,6 +147,23 @@ modern — imagery gets center stage, interface stays quiet.
   a post-build double-rAF re-fit catch the width change when the vertical
   scrollbar appears on cached loads (plain window 'resize' doesn't fire for
   that). PostersGallery.{build, relayout, unmount, rebuild}.
+- js/hero-cycle.js — the toolbar hero image is a 4-clip CYCLE that advances
+  one step each time the mouse UNHOVERS it. Fixed sequence (Jumpdude is always
+  shown on a fresh load): Jumpdude-b.gif → Main-Color-Blob-A-web.mp4 →
+  Blow_01_web.mp4 → LTX_Shapes.mp4 (wraps). On mouseleave of .lp-gif-hot the
+  current clip CROSSFADES (opacity, duration = "Cycle transition" tweak
+  gifCycleDur → --gif-cycle-dur) into the next; the idle blur masks the swap.
+  Markup: gifHTML() builds <div class="lp-gif"><a><div class="lp-gif-stack">
+  <media class="lp-gif-media is-current">…</a></div> — same wrapper as before,
+  so ALL Hero Image controls (size/align/blur/hue/mask/hover) drive the whole
+  stack via the existing --gif-*/".lp-gif a" rules. LTX_Shapes gets .lp-gif-big
+  (transform:scale(1.15)) so it reads at a comparable scale to the others; the
+  shared size control still scales it uniformly. PERF/SMOOTHNESS: the NEXT clip
+  is pre-warmed off-screen (startPreload) so every reveal finds a decoded frame
+  ready — a fresh element instead waits for loadeddata (500ms fallback) so the
+  fade never starts on a blank frame (which read as a jump-cut). portfolio.js's
+  gifHTML() delegates to HeroCycle.gifHTML() and calls HeroCycle.init() after
+  each left-panel render. window.HeroCycle.{gifHTML, init}.
 - js/portfolio.js — hash routing, left-panel rendering, title stack,
   project-page content rendering (block grid), image lightbox, and page-exit
   video teardown. Also disables the site-wide right-click/context menu
@@ -237,6 +259,18 @@ MOBILE-APP (js/mobile-app.js) — independent layer, shares DATA not code:
   / 6px landscape when EMBEDDED in the harness (fakes the inset), 0 on a real
   device (uses env()). positionView() sets the scroll view's top padding =
   the live logo-bar height so content sits just under it (re-runs on resize).
+  LOGO SHAPE: an optional blank shape (.m-logo-shape-blur + .m-logo-shape-fill)
+  pinned BEHIND the logo text on the same fixed overlay, auto-sized to the
+  text's own box + extra Width/Height px (centered), default a white sharp-
+  cornered rectangle slightly larger than the logo. Two SIBLING layers (not
+  nested) so a `filter`/`transform` ancestor can't open a backdrop root that
+  cuts the blur off from the page: .m-logo-shape-blur is a bare backdrop-filter
+  (blurs the CONTENT underneath like an adjustment layer, independent of the
+  fill's Opacity), .m-logo-shape-fill is the coloured tint with its own
+  Opacity. Roundness = border-radius % (0 = rect → 50% = oval per-axis); Edge
+  blur = a `filter` on each layer (feathers a flat-fill rect's edge, no mask).
+  Tweaks (Logo shape section): mShapeShow/mShapeW/mShapeH/mShapeRadius (mapped
+  ÷2 → %)/mShapeColor/mShapeOpacity/mShapeBlur (content behind)/mShapeEdgeBlur.
 - HOME: single vertical thumbnail feed (no list/gallery toggle). Social icons
   + about row at the top (scrolls away; NO hero image, NO bio). FILTER row
   below it (window.filterDefs), single-select, black default / --highlight on
@@ -310,7 +344,8 @@ their own mobile sizes. The rest of the about page uses desktop sizes directly.
 MOBILE TWEAKS: a SEPARATE namespace — m* keys in the TWEAKS block (mLogoSize,
 mLogoAlign, mLogoColor, mLogoTapColor, mFeedMode, mFeedGap, mTitleSize,
 mProjTitleSize, mMiniSize, mTagsSize, mHoldBlur/Opacity/Saturation/TextY/Align,
-mLabelAlign, mFilterSize/Align/Gap, mDivShow, mDivSpace). applyMobileTweaks()
+mLabelAlign, mFilterSize/Align/Gap, mDivShow, mDivSpace, mShapeShow,
+mShapeW/H/Radius/Color/Opacity/Blur/EdgeBlur). applyMobileTweaks()
 maps them to
 --m-* vars; desktop keys are untouched; content (projects/bio/labels) lives
 once. Two PARALLEL panels, same keys + persistence:
@@ -384,7 +419,18 @@ it dissolves seamlessly past the image box instead of hard-clipping). The
 blur + mask live on the <a> WRAPPER (not the <img>): replaced elements clip
 their own filter bleed to the content box, leaving a hard edge. Hover adds
 Scale and an "Invert hue" toggle (hue-rotate 180°, composes with the hover
-Hue). The logo/Social+About positions are kept IN SYNC
+Hue).
+
+HERO CYCLE (js/hero-cycle.js) — the toolbar hero image rotates through 4
+fixed Playground clips (Jumpdude-b.gif [default on load] → Main-Color-Blob-
+A-web.mp4 → Blow_01_web.mp4 → LTX_Shapes.mp4, wrapping), advancing one step
+each time the mouse UNHOVERS the hero. The swap is an opacity crossfade
+(duration = the Cycle transition tweak) under the idle blur, so it reads as
+seamless. All Hero Image controls drive whichever clip is current. Tweak keys:
+gifShow/gifY/gifSize/gifAlign (LABELLED "Show image / Image Y / Image size /
+Image align" in the panel) + gifCycleDur. See the js/hero-cycle.js bullet
+above for the pre-warm/crossfade internals. The logo/Social+About positions
+are kept IN SYNC
 between the home view and the about page. On a project page the left
 panel shows title / year / tag chips / desc + Back (and optional Play)
 button pinned near the bottom (divider + gif are absent there). An empty

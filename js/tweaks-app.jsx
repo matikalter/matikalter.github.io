@@ -537,17 +537,20 @@
           </TweakSection>
 
           <TweakSection label="Hero Image" sub collapsible defaultOpen={false}>
-            <TweakToggle label="Show gif" value={t.gifShow !== false}
+            <TweakToggle label="Show image" value={t.gifShow !== false}
                          onChange={(v) => setTweak('gifShow', v)} />
-            <TweakSlider label="Gif Y (from bottom)" value={t.gifY != null ? t.gifY : 32}
+            <TweakSlider label="Image Y" value={t.gifY != null ? t.gifY : 32}
                          min={0} max={600} step={1} unit="px"
                          onChange={(v) => setTweak('gifY', v)} />
-            <TweakSlider label="Gif size" value={t.gifSize != null ? t.gifSize : 130}
-                         min={40} max={360} step={1} unit="px"
+            <TweakSlider label="Image size" value={t.gifSize != null ? t.gifSize : 130}
+                         min={40} max={1000} step={1} unit="px"
                          onChange={(v) => setTweak('gifSize', v)} />
-            <TweakRadio  label="Gif align" value={t.gifAlign || 'left'}
+            <TweakRadio  label="Image align" value={t.gifAlign || 'left'}
                          options={['left', 'center', 'right']}
                          onChange={(v) => setTweak('gifAlign', v)} />
+            <TweakSlider label="Cycle transition" value={t.gifCycleDur != null ? t.gifCycleDur : 600}
+                         min={100} max={2000} step={50} unit="ms"
+                         onChange={(v) => setTweak('gifCycleDur', v)} />
 
             <TweakSection label="Idle" sub collapsible defaultOpen={false}>
               <TweakSlider label="Blur" value={t.gifBlur != null ? t.gifBlur : 0}
@@ -1067,6 +1070,10 @@
           <TweakSlider label="Education max width" value={t.aboutMetaMaxW != null ? t.aboutMetaMaxW : 0}
                        min={0} max={900} step={1} unit="px"
                        onChange={(v) => setTweak('aboutMetaMaxW', v)} />
+          <TweakText   label="Text" multiline
+                       value={t.aboutText != null && t.aboutText !== '' ? t.aboutText
+                              : (window.__bioLongDefault || window.BIO_LONG || '')}
+                       onChange={(v) => setTweak('aboutText', v)} />
         </TweakSection>
 
         {/* ── PLAYGROUND GALLERY ──────────────────────────────────────── */}

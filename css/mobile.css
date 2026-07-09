@@ -44,6 +44,14 @@
   --m-filter-size: 15px;
   --m-filter-justify: flex-start;
   --m-filter-gap: 18px;
+  --m-shape-w: 48px;
+  --m-shape-h: 24px;
+  --m-shape-radius: 0%;
+  --m-shape-color: #ffffff;
+  --m-shape-opacity: 1;
+  --m-shape-blur: 0px;
+  --m-shape-edge-blur: 0px;
+  --m-shape-display: block;
 }
 
 /* ── fixed logo overlay (all pages) ── */
@@ -58,6 +66,56 @@
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
+.m-logo-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+/* blank shape pinned behind the logo text, same fixed overlay layer as the
+   logo bar itself. Sized relative to the TEXT's own box (calc(100% + extra)),
+   centered on it, so it auto-fits any logo string with no measurement JS:
+   --m-shape-w/h are the extra px added beyond the text's width/height
+   (split evenly across both sides by the centered transform). Roundness is
+   plain CSS percentage border-radius (0% = sharp rect, 50% = full oval,
+   independently per axis so non-square boxes still become a true oval).
+
+   TWO independent siblings (not one nested inside the other) so Opacity only
+   fades the COLOR TINT, never the blur:
+   .m-logo-shape-blur is a plain backdrop-filter with no fill of its own —
+   opacity composites opacity*renderedOutput, so a color layer at opacity 0
+   would erase its OWN backdrop-filter along with it if they were combined.
+   Splitting them means Blur can be maxed while Opacity is 0 (blur with no
+   visible tint), like an adjustment layer. They must be SIBLINGS, not one
+   wrapped inside the other with `filter`/`transform` on the shared parent —
+   either of those on an ANCESTOR opens a new backdrop root, which cuts the
+   blur layer off from the actual page behind it (nothing left to sample),
+   silently no-oping the blur. Each layer carries its own position + edge-
+   blur `filter` (blurring a flat-fill rect's edge with no visible interior
+   change reads as a feathered boundary — no separate mask needed); a
+   `filter` on the element itself is fine, only on an ancestor is it a
+   problem. Paint order (DOM order): blur layer first (behind, unaffected by
+   the tint), fill layer second (the visible color, own opacity) on top. */
+.m-logo-shape-blur,
+.m-logo-shape-fill {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: calc(100% + var(--m-shape-w, 48px));
+  height: calc(100% + var(--m-shape-h, 24px));
+  transform: translate(-50%, -50%);
+  border-radius: var(--m-shape-radius, 0%);
+  filter: blur(var(--m-shape-edge-blur, 0px));
+  z-index: -1;
+  pointer-events: none;
+  display: var(--m-shape-display, block);
+}
+.m-logo-shape-blur {
+  -webkit-backdrop-filter: blur(var(--m-shape-blur, 0px));
+  backdrop-filter: blur(var(--m-shape-blur, 0px));
+}
+.m-logo-shape-fill {
+  background: var(--m-shape-color, #ffffff);
+  opacity: var(--m-shape-opacity, 1);
+}
 .m-logo-text {
   font-family: var(--font);
   font-size: var(--m-logo-size);
@@ -66,6 +124,8 @@
   line-height: 1;
   color: var(--m-logo-color, var(--text, #111));
   transition: color 0.18s ease;
+  position: relative;
+  z-index: 1;
 }
 .m-logo:active .m-logo-text { color: var(--m-logo-tap-color, var(--highlight, #8089ef)); }
 
