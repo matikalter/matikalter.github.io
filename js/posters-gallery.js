@@ -76,20 +76,16 @@
     var box = document.getElementById('pg-desc');
     if (!box) return;
     var info = descFor(src);
-    var pd  = document.querySelector('.lp-proj-desc');
     var tEl = document.getElementById('pg-desc-title');
     var bEl = document.getElementById('pg-desc-body');
     if (tEl) { tEl.innerHTML = info.title || ''; tEl.style.display = info.title ? '' : 'none'; }
     if (bEl) { bEl.innerHTML = info.body  || ''; bEl.style.display = info.body  ? '' : 'none'; }
     var has = !!(info.title || info.body);
     box.classList.toggle('is-visible', has);
-    if (pd) pd.classList.toggle('pg-hidden', has);
   }
   function hideDesc() {
     var box = document.getElementById('pg-desc');
     if (box) box.classList.remove('is-visible');
-    var pd = document.querySelector('.lp-proj-desc');
-    if (pd) pd.classList.remove('pg-hidden');
   }
 
   function currentCols() {
@@ -109,7 +105,10 @@
       html += '<div class="posters-row">';
       for (var j = start; j < Math.min(start + N, imgs.length); j++) {
         var im  = imgs[j];
-        var url = 'assets/' + pid + '/' + encodeURIComponent(im.src);
+        /* a src containing a SLASH is a shared asset path relative to assets/;
+           a bare filename lives in this gallery's own project folder */
+        var rel = (String(im.src).indexOf('/') !== -1) ? String(im.src) : (pid + '/' + im.src);
+        var url = 'assets/' + rel.split('/').map(encodeURIComponent).join('/');
         html += '<div class="posters-tile" data-src="' + String(im.src).replace(/"/g, '&quot;') + '"'
              +  ' data-hint="' + (im.ratio || '') + '">'
              +    '<img src="' + url + '" alt="" loading="lazy" draggable="false" data-zoom="1">'
@@ -157,6 +156,8 @@
     if (!mount) return;
     var W = mount.clientWidth || Math.round(mount.getBoundingClientRect().width);
     if (!W) return;
+    state.laying = true;
+    state.lastW  = W;
     var N    = currentCols();
     var hgap = (window.POSTERS_HGAP != null) ? window.POSTERS_HGAP : 24;
     var vgap = (window.POSTERS_VGAP != null) ? window.POSTERS_VGAP : 24;
@@ -216,6 +217,7 @@
       }
       if (full) refH = appliedMax;
     });
+    state.laying = false;
   }
 
   function parseRatio(s) {
@@ -238,14 +240,31 @@
     /* Track the mount's width directly: a plain window 'resize' does NOT fire
        when the width changes because a vertical scrollbar appears/disappears or
        the left toolbar collapses — a ResizeObserver on the mount catches all of
-       these. Guard against the observe callback firing during our own relayout. */
+       these.
+       RUNAWAY GUARD (embedded-in-a-content-page case): relayout() changes the
+       gallery's HEIGHT, which the observer also reports, and px tile widths that
+       sum to the available width can round a hair wider than the mount — enough
+       to grow a content-sized mount, which re-fires the observer, which grows it
+       again. So the callback only acts on a real WIDTH change (>1px), coalesces
+       to one rAF, and never re-enters while a relayout is in flight. */
     if (typeof ResizeObserver !== 'undefined') {
-      if (!state.ro) state.ro = new ResizeObserver(function () { if (state.mount) relayout(); });
+      if (!state.ro) state.ro = new ResizeObserver(function () { roPing(); });
       state.ro.observe(mount);
     } else if (!state.bound) {
       state.bound = true;
       window.addEventListener('resize', function () { if (state.mount) relayout(); });
     }
+  }
+
+  function roPing() {
+    if (!state.mount || state.laying || state.roQueued) return;
+    var w = state.mount.clientWidth;
+    if (state.lastW != null && Math.abs(w - state.lastW) <= 1) return;
+    state.roQueued = true;
+    requestAnimationFrame(function () {
+      state.roQueued = false;
+      if (state.mount) relayout();
+    });
   }
 
   function unmount() {
@@ -255,6 +274,9 @@
     state.mount = null;
     state.images = [];
     state.pid = null;
+    state.lastW = null;
+    state.laying = false;
+    state.roQueued = false;
   }
 
   window.PostersGallery = {

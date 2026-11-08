@@ -72,8 +72,217 @@
     return 0.95 * s;
   }
 
+  /* ══ STEP SCROLL (Scroll → Method: Step; LIST_SCROLL_MODE === 'step') ══
+     The CLASSIC method above is momentum + idle-delay + lerp-to-nearest: every
+     scroll pays a glide, then a wait, then a slow-start ease. STEP instead
+     resolves each gesture to a PROJECT the moment intent is clear and animates
+     there with a critically damped spring:
+       · mouse wheel — every notch = one project (rate-limited)
+       · trackpad   — a swipe switches once it has travelled LIST_STEP_SENS px;
+                      the momentum tail that follows is ignored (deltas decay),
+                      while a fresh flick on top of it (deltas rise again)
+                      re-arms — so one flick = one project, quick repeated
+                      flicks = several
+       · drag       — 1:1 while held; on release the release velocity picks
+                      the project and the spring starts FROM that velocity
+       · keys       — ↑ / ↓ (both methods)
+     The spring is integrated ANALYTICALLY (exact closed form for a critically
+     damped oscillator), so it is frame-rate independent and stable at any dt,
+     and retargeting mid-flight keeps the current velocity — no jolt when a
+     second step lands while the first is still moving. Duration = time to
+     ~99% settled (LIST_STEP_DURATION s). */
+  function stepMode() { return window.LIST_SCROLL_MODE === 'step'; }
+  var stp = { on: false, g: 0, target: 0, v: 0 };   /* g = target global index, v = px/ms */
+  var MAX_LEAD = 3;   /* steps the target may run ahead of what's on screen */
+  var wg = {          /* trackpad gesture tracker */
+    lastT: 0, dir: 0, acc: 0, stepped: false, lastStepT: 0,
+    s1: 0, s2: 0, peak: 0, trough: Infinity, falling: false
+  };
+  var GESTURE_GAP_MS = 160;   /* no wheel event for this long = the gesture ended */
+  var MOUSE_STEP_MS  = 70;    /* fastest a spun mouse wheel may step */
+  var keyT = 0;
+
+  /* global index g (any integer; infinite mode wraps) ↔ full-space scrollY */
+  function snapYForGlobal(g) {
+    var n = state.items.length;
+    if (!n) return 0;
+    if (!isInfinite()) { g = Math.max(0, Math.min(n - 1, g)); return state.snapsMod[g]; }
+    var cyc = Math.floor(g / n), i = g - cyc * n;
+    return cyc * state.unitH + state.snapsMod[i];
+  }
+  function globalNear(y) {
+    var n = state.items.length;
+    if (!n || !state.unitH) return 0;
+    var t = nearestSnapTarget(y);
+    if (!isInfinite()) {
+      for (var j = 0; j < n; j++) if (Math.abs(state.snapsMod[j] - t) < 0.5) return j;
+      return 0;
+    }
+    var cyc = Math.floor((t + 0.5) / state.unitH), w = t - cyc * state.unitH, bi = 0, bd = Infinity;
+    for (var i = 0; i < n; i++) { var d = Math.abs(state.snapsMod[i] - w); if (d < bd) { bd = d; bi = i; } }
+    return cyc * n + bi;
+  }
+  /* ── GO TO PROJECT (click an INACTIVE title or thumbnail) ──
+     Glide the clicked project to the active (centre) slot with the step spring
+     — either scroll method — then call cb(true) once it has SETTLED there (the
+     caller opens the project). Any other input meanwhile (wheel, drag, keys, a
+     rebuild) re-aims the spring, which cancels the trip: cb(false). While a
+     trip runs, NAV LOCK is on (window.__navLockId = the target id, html
+     .nav-locked): every other title and thumbnail ignores clicks, so nothing
+     can interfere with the scroll + page switch. Callers clear the lock in cb. */
+  var go = null;   /* { g, cb } */
+  function cancelGo() { if (go) { var cb = go.cb; go = null; cb(false); } }
+  function goToGlobal(g, cb) {
+    var n = state.items.length;
+    if (!n) { cb(false); return; }
+    if (!isInfinite()) g = Math.max(0, Math.min(n - 1, g));
+    cancelGo();
+    go = { g: g, cb: cb };
+    springTo(g);
+    state.lastInputT = performance.now();
+  }
+  /* the copy of project idx i nearest the current position (infinite wraps) */
+  function globalForIdx(i) {
+    var n = state.items.length;
+    if (!isInfinite()) return i;
+    var near = globalNear(state.scrollY), base = near - (((near % n) + n) % n);
+    var best = base + i, bd = Math.abs(best - near);
+    [base + i - n, base + i + n].forEach(function (g) { var d = Math.abs(g - near); if (d < bd) { bd = d; best = g; } });
+    return best;
+  }
+  /* the global index of a clicked .list-item, from where it sits on screen */
+  function globalForEl(el) {
+    var th = el.querySelector('.list-thumb') || el, r = th.getBoundingClientRect();
+    var mid = state.vpH / 2 + (Number(window.LIST_COLUMN_Y) || 0) + homeLift();
+    return globalNear(state.scrollY + (r.top + r.height / 2 - mid));
+  }
+  function navLock(id) {
+    window.__navLockId = id;
+    document.documentElement.classList.add('nav-locked');
+    clearTimeout(navLock.t);   /* safety net: never leave the page locked */
+    navLock.t = setTimeout(navUnlock, 4000);
+  }
+  function navUnlock() {
+    clearTimeout(navLock.t);
+    window.__navLockId = null;
+    document.documentElement.classList.remove('nav-locked');
+  }
+
+  function springTo(g, v) {
+    var n = state.items.length;
+    if (!n) return;
+    if (!isInfinite()) g = Math.max(0, Math.min(n - 1, g));
+    if (go && g !== go.g) cancelGo();   /* re-aimed by other input → trip cancelled */
+    stp.g = g;
+    stp.target = snapYForGlobal(g);
+    if (v != null) stp.v = v;
+    if (!stp.on) { stp.on = true; if (v == null) stp.v = 0; }
+    state.velY = 0;
+    state.snapTarget = null;
+  }
+  /* one project up (-1) / down (+1) from the current target (or from what's
+     centred, when idle) — capped so a burst can't run far ahead of the view */
+  function stepBy(d) {
+    if (!state.items.length) return;
+    var near = globalNear(state.scrollY);
+    var from = stp.on ? stp.g : near;
+    var g = from + d;
+    if (g - near > MAX_LEAD) g = near + MAX_LEAD;
+    if (near - g > MAX_LEAD) g = near - MAX_LEAD;
+    springTo(g);
+    state.lastInputT = performance.now();
+  }
+  function stepSpring(dt) {
+    var D = Number(window.LIST_STEP_DURATION);
+    if (!(D > 0)) D = 0.5;
+    D = Math.max(0.12, D);
+    var w = 7 / (D * 1000);                 /* (1 + wD)·e^(−wD) ≈ 0.7% left at D */
+    var x0 = state.scrollY - stp.target, v0 = stp.v, e = Math.exp(-w * dt);
+    var x = (x0 + (v0 + w * x0) * dt) * e;
+    var v = (v0 - w * (v0 + w * x0) * dt) * e;
+    if (Math.abs(x) < 0.25 && Math.abs(v) < 0.005) { x = 0; v = 0; stp.on = false; }
+    state.scrollY = stp.target + x;
+    stp.v = v;
+  }
+  /* mouse wheel vs trackpad. Mouse notches report wheelDelta in ±120 steps;
+     Chrome/Safari/Firefox trackpads report wheelDelta = 3 × deltaY (pixels),
+     which can also land on 120 — so that exact ratio is excluded. Firefox
+     line-mode (deltaMode 1) is always a wheel. */
+  function isMouseWheel(e) {
+    if (e.deltaMode === 1) return true;
+    var wd = Math.abs(e.wheelDeltaY || 0), dy = Math.abs(e.deltaY || 0);
+    if (!wd || wd % 120 !== 0) return false;
+    return Math.abs(wd - 3 * dy) > 1;
+  }
+  function onStepWheel(e) {
+    var d = e.deltaY;
+    if (e.deltaMode === 1) d *= 40; else if (e.deltaMode === 2) d *= (state.vpH || 800);
+    if (!d) return;
+    var now = performance.now(), dir = d > 0 ? 1 : -1, a = Math.abs(d);
+    state.lastInputT = now;
+
+    if (isMouseWheel(e)) {
+      if (now - wg.lastStepT >= MOUSE_STEP_MS) { stepBy(dir); wg.lastStepT = now; }
+      wg.lastT = now; wg.dir = dir; wg.stepped = true; wg.acc = 0;
+      return;
+    }
+
+    if (now - wg.lastT > GESTURE_GAP_MS || dir !== wg.dir) {
+      wg.acc = 0; wg.stepped = false; wg.s1 = wg.s2 = 0;
+      wg.peak = 0; wg.trough = Infinity; wg.falling = false;
+    }
+    wg.lastT = now; wg.dir = dir;
+    /* 3-event smoothed magnitude — trackpad deltas are noisy (±20%) */
+    var s = (a + wg.s1 + wg.s2) / (wg.s2 ? 3 : (wg.s1 ? 2 : 1));
+    wg.s2 = wg.s1; wg.s1 = a;
+
+    if (wg.stepped) {
+      /* after a step: still the same swipe (rising), or its momentum tail
+         (falling)? Only a clear RISE out of a falling tail is a new flick. */
+      if (!wg.falling) {
+        if (s > wg.peak) wg.peak = s;
+        else if (s < wg.peak * 0.8) { wg.falling = true; wg.trough = s; }
+        return;
+      }
+      if (s < wg.trough) { wg.trough = s; return; }
+      if (!(s > wg.trough * 1.8 + 4 && now - wg.lastStepT > 120)) return;
+      wg.stepped = false; wg.acc = 0;   /* re-armed: fresh flick on top of momentum */
+    }
+    wg.acc += a;
+    var sens = Number(window.LIST_STEP_SENS);
+    if (!(sens > 0)) sens = 30;
+    if (wg.acc >= sens) {
+      stepBy(dir);
+      wg.stepped = true; wg.lastStepT = now; wg.acc = 0;
+      wg.peak = s; wg.trough = Infinity; wg.falling = false;
+    }
+  }
+  /* drag release (step mode): project the release velocity, pick the project,
+     spring there starting from the hand's own speed */
+  function releaseStep() {
+    if (!state.items.length) return;
+    var v = state.velY;                        /* px/ms, scroll direction */
+    if (performance.now() - drag.lt > 80) v = 0;   /* held still before letting go */
+    v = Math.max(-4, Math.min(4, v));
+    var start = drag.startG != null ? drag.startG : globalNear(state.scrollY);
+    var g = globalNear(state.scrollY + v * 160);
+    if (g === start && Math.abs(v) > 0.35) g = start + (v > 0 ? 1 : -1);   /* short quick flick */
+    if (g - start > MAX_LEAD) g = start + MAX_LEAD;
+    if (start - g > MAX_LEAD) g = start - MAX_LEAD;
+    state.velY = 0;
+    springTo(g, v);
+  }
+
   /* ── DOM refs ── */
   var stage, column, track;
+
+  /* current offset of the #home-projects layer (reel intro), published by
+     js/home-intro.js. Anything we write as a viewport y INTO an element inside
+     that layer must subtract it. */
+  function homeLift() {
+    var v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--home-lift'));
+    return isNaN(v) ? 0 : v;
+  }
 
   /* ── computed display dims for one thumbnail ──
      `conformity` (0..1) controls how much thumbnails enforce a uniform width:
@@ -116,7 +325,13 @@
      touching thumbRatio — it self-corrects. */
   var ratioCache = window.__thumbRatioCache || (window.__thumbRatioCache = {});
   function isVideoSrc(s) { return /\.(mp4|webm|mov|m4v)$/i.test(s || ''); }
-  function thumbSrc(p) { return p.thumb ? ('assets/' + p.id + '/' + p.thumb) : ''; }
+  /* a thumb naming a path with a SLASH is read relative to assets/ (shared asset,
+     one file referenced by several pages); a bare filename lives in the project's
+     own folder. Mirrors assetPath() in portfolio.js. */
+  function thumbSrc(p) {
+    if (!p.thumb) return '';
+    return 'assets/' + (String(p.thumb).indexOf('/') !== -1 ? p.thumb : (p.id + '/' + p.thumb));
+  }
   function ratioFor(p) {
     var s = thumbSrc(p);
     if (s && ratioCache[s] != null) return ratioCache[s];
@@ -324,6 +539,7 @@
     }
     state.snapTarget = null;
     state.lastInputT = performance.now();
+    stp.on = false; stp.v = 0;   /* geometry changed — any in-flight step target is stale */
 
     /* render */
     var html = '';
@@ -339,8 +555,8 @@
           +    '<div class="list-thumb-media">'
           +    (it.p.thumb
                  ? (isVideoSrc(it.p.thumb)
-                      ? '<video src="assets/' + it.p.id + '/' + it.p.thumb + '" autoplay muted loop playsinline preload="metadata" draggable="false"></video>'
-                      : '<img src="assets/' + it.p.id + '/' + it.p.thumb + '" alt="' + it.p.title + '" draggable="false">')
+                      ? '<video src="' + thumbSrc(it.p) + '" autoplay muted loop playsinline preload="metadata" draggable="false"></video>'
+                      : '<img src="' + thumbSrc(it.p) + '" alt="' + it.p.title + '" draggable="false">')
                  : '')
           +    '</div>'
           +    '</div>'
@@ -348,9 +564,17 @@
       }
     }
     track.innerHTML = html;
+    state.appliedId = undefined;   /* fresh nodes: re-apply .is-active */
+    state.lastTY = null;
 
     applyTransform();
     bindEvents();
+    /* set the active thumb SYNCHRONOUSLY (before the first paint) so the
+       centered thumbnail is never briefly styled as inactive (dimmed/
+       desaturated) in the frame gap before the rAF tick runs updateActive.
+       On a preserveScroll rebuild activeId was cleared, so this both fixes the
+       flicker AND re-fires onActiveChange to re-seed the mini/tags. */
+    updateActive();
     positionMarker();
     updateScrollMarkers();
 
@@ -364,6 +588,93 @@
     if (state.onRebuilt) state.onRebuilt();
   }
 
+  /* ── RESIZE-in-place: update thumb sizes + snaps WITHOUT rewriting innerHTML,
+     so <video> thumbnails (e.g. Playground) aren't torn down + recreated (which
+     re-fetches/re-decodes and flickers). Returns false when the existing DOM
+     can't be reused (item set / copy coverage changed) → caller falls back to a
+     full build(). Only used on resize; tweaks/filter changes still go through
+     build() (they may change align, order, spacing, etc.). */
+  function relayout() {
+    if (window.DISPLAY_MODE === 'gallery') return false;
+    if (!state.on) return false;
+    stage  = document.getElementById('list-stage');
+    column = document.getElementById('list-column');
+    track  = document.getElementById('list-track');
+    if (!stage || !column || !track) return false;
+
+    /* same content set as currently rendered? */
+    var vis = visibleProjects();
+    if (!vis.length) return false;
+    if (vis.length !== state.items.length) return false;
+    for (var vi = 0; vi < vis.length; vi++) {
+      if (!state.items[vi] || state.items[vi].p.id !== vis[vi].id) return false;
+    }
+
+    /* column geometry (same math as build) */
+    var stageLeft = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--left-w'));
+    if (isNaN(stageLeft)) stageLeft = 340;
+    var panelW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--panel-w'));
+    if (isNaN(panelW)) panelW = stageLeft || 340;
+    var vpW = window.innerWidth - panelW;
+    var vpH = window.innerHeight;
+    var columnW = Math.round(vpW * LIST_COL_W_FRAC);
+    var pos = (window.LIST_COL_POS != null ? Number(window.LIST_COL_POS) : 0.5);
+    if (pos < 0) pos = 0; else if (pos > 1) pos = 1;
+    var columnX = (panelW - stageLeft) + (vpW - columnW) * pos;
+
+    /* recompute per-item dims + snaps */
+    var items = vis.map(function (p) {
+      var d = computeDims(ratioFor(p), columnW, vpH);
+      return { p: p, w: d.w, h: d.h };
+    });
+    var unitH = 0, snapsMod = [], snapStartMod = [], topInCopy = 0;
+    for (var si = 0; si < items.length; si++) {
+      snapStartMod.push(topInCopy);
+      snapsMod.push(topInCopy + (items[si].h - items[0].h) / 2);
+      topInCopy += items[si].h + LIST_SPACING;
+      unitH = topInCopy;
+    }
+
+    /* the DOM must already hold exactly copies × items nodes AND still provide
+       enough vertical coverage at the new (smaller) unitH — else fall back. */
+    var copies = state.copies || 1;
+    var neededCopies = isInfinite() ? Math.max(3, Math.ceil(vpH / unitH) + 2) : 1;
+    if (copies < neededCopies) return false;
+    var nodes = track.children;
+    if (nodes.length !== copies * items.length) return false;
+
+    /* commit new geometry */
+    state.vpH = vpH;
+    state.columnW = columnW;
+    state.columnX = columnX;
+    state.items = items;
+    state.unitH = unitH;
+    state.snapsMod = snapsMod;
+    state.snapStartMod = snapStartMod;
+    state.initialOffset = vpH / 2 - items[0].h / 2 + (Number(window.LIST_COLUMN_Y) || 0);
+    column.style.left  = columnX + 'px';
+    column.style.width = columnW + 'px';
+
+    /* resize each existing thumb in place (data-idx maps node → item) */
+    for (var n = 0; n < nodes.length; n++) {
+      var node = nodes[n];
+      var idx  = Number(node.getAttribute('data-idx')) || 0;
+      var it   = items[idx];
+      if (!it) return false;
+      var thumb = node.querySelector('.list-thumb');
+      if (thumb) { thumb.style.width = it.w + 'px'; thumb.style.height = it.h + 'px'; }
+    }
+
+    /* an in-flight step keeps its project, re-aimed at the new geometry */
+    if (stp.on) stp.target = snapYForGlobal(stp.g);
+    measureUncached(vis);
+    applyTransform();
+    updateActive();
+    positionMarker();
+    updateScrollMarkers();
+    return true;
+  }
+
   /* ── apply current scroll position to the track transform ── */
   function applyTransform() {
     if (!track || !state.unitH) return;
@@ -374,7 +685,8 @@
     var modded = moddedScroll(state.scrollY);
     var baseY  = state.initialOffset - state.centeredCopyIdx * state.unitH;
     var y      = baseY - modded;
-    track.style.transform = 'translateY(' + y + 'px)';
+    /* write only on change (the loop runs every frame, mostly at rest) */
+    if (y !== state.lastTY) { state.lastTY = y; track.style.transform = 'translate3d(0,' + y + 'px,0)'; }
 
     updateActive();
   }
@@ -426,7 +738,10 @@
     /* visual active marker — toggle class only when changed. Inactive
        styling (opacity / saturation / tint) is now PURE CSS via the
        :not(.is-active) selector, so we don't need to set inline opacity. */
-    if (track) {
+    /* only when the active project actually changed — this ran (remove + re-add
+       on every copy) EVERY frame, invalidating style on the whole list */
+    if (track && state.appliedId !== state.activeId) {
+      state.appliedId = state.activeId;
       var prev = track.querySelectorAll('.list-item.is-active');
       for (var k = 0; k < prev.length; k++) prev[k].classList.remove('is-active');
       var actives = track.querySelectorAll('.list-item[data-id="' + state.activeId + '"]');
@@ -563,14 +878,20 @@
     var thumbLeftInStage  = bestRect.left  - leftW;
     var thumbRightInStage = bestRect.right - leftW;
 
-    var markerW = marker.offsetWidth || 14;
+    var markerBoxW = marker.offsetWidth || 14;
+    /* Glyph → Rotation: a quarter-turned glyph is as WIDE as its box is tall.
+       It spins about its centre, so shift `left` by half the difference to
+       keep the gap measured from its visible edge. */
+    var quarter = Math.abs(Math.round((Number(window.MARKER_ROTATE) || 0) / 90)) % 2 === 1;
+    var markerW = quarter ? (marker.offsetHeight || markerBoxW) : markerBoxW;
+    var rotAdj  = (markerBoxW - markerW) / 2;
     var gap = (window.MARKER_GAP != null ? Number(window.MARKER_GAP) : 16);
     /* marker sits to the LEFT of the thumb by default, or to the RIGHT when
        MARKER_ALIGN === 'right'. The gap is always measured from the thumb on
        the chosen side. */
     var targetX = (window.MARKER_ALIGN === 'right')
-      ? (thumbRightInStage + gap)
-      : (thumbLeftInStage - gap - markerW);
+      ? (thumbRightInStage + gap - rotAdj)
+      : (thumbLeftInStage - gap - markerW - rotAdj);
 
     /* set target; tick loop's adaptive-lerp moves markerXCur → targetX */
     state.markerXTarget = targetX;
@@ -602,10 +923,26 @@
     /* connect to the marker's CENTER (not its edge) so the line runs underneath
        the glyph with no visible gap — glyphs like ▶ don't fill their own box
        edge-to-edge, so stopping at mR.left/right left a sliver showing. */
-    var markerX = mR.left + mR.width / 2 + (titleX <= mR.left ? 2 : -2);
+    /* Glyph X offset nudges the glyph only (like Y below): the line keeps
+       ending at the UN-nudged centre, so the glyph's ink can be moved onto it */
+    var markerX = mR.left + mR.width / 2 - (Number(window.MARKER_GLYPH_X) || 0) + (titleX <= mR.left ? 2 : -2);
     var x1 = Math.min(titleX, markerX);
     var x2 = Math.max(titleX, markerX);
-    var y  = mR.top + mR.height / 2;
+    /* "Touch toolbar edge": pull the line's LEFT end out to the toolbar's edge
+       divider (the panel's right border sits at --left-w; 0 when the toolbar is
+       collapsed) so it spans the gap between that divider and the title stack.
+       isNaN-guarded, NOT `|| 340`, so a real 0 (collapsed) is respected. */
+    if (window.MARKER_LINE_TO_EDGE) {
+      var lw = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--left-w'));
+      if (!isNaN(lw)) x1 = Math.min(x1, lw);
+    }
+    /* the line element lives INSIDE #home-projects, whose transform (the reel
+       intro slide) is applied on top of whatever we write here — so subtract
+       the published lift to keep the measured viewport y correct. */
+    var y  = mR.top + mR.height / 2 - homeLift();
+    /* the marker box is nudged by Center marker → Glyph Y offset; undo it
+       here so the line stays on the row centre and only the glyph moves */
+    y -= (Number(window.MARKER_GLYPH_Y) || 0);
     /* Round to the nearest whole CSS pixel before writing it. A fractional
        top (from getBoundingClientRect at a non-integer effective zoom, e.g.
        windowed/Present mode) otherwise anti-aliases the hairline across two
@@ -613,7 +950,10 @@
        (which the browser always hints crisply). Pairing this with border-top
        (see CSS) instead of a filled height:1px box gives the same crisp,
        always-minimum-thickness rendering as that divider. */
-    y = Math.round(y);
+    /* Line → Thickness: centre a thicker rule on the row (a 1px line keeps
+       its exact old placement) */
+    var lwPx = Number(window.MARKER_LINE_W) || 1;
+    y = Math.round(y - (lwPx - 1) / 2);
     line.style.left  = x1 + 'px';
     line.style.width = Math.max(0, x2 - x1) + 'px';
     line.style.top   = y + 'px';
@@ -719,16 +1059,26 @@
     state.ft = now;
 
     var snapEnabled = (window.LIST_SNAP_ENABLED !== false);
-    /* "Snap time" responsiveness (0..1): high = snaps almost immediately after
-       the user stops, low = long pause first. Maps to an idle-debounce window
-       of up to 600ms (value 1 → ~0ms, value 0 → 600ms). */
-    var snapTime = (window.LIST_SNAP_TIME != null ? window.LIST_SNAP_TIME : 0.8);
-    var SNAP_IDLE_MS = Math.round((1 - Math.max(0, Math.min(1, snapTime))) * 600);
+    /* "Snap time" = the idle DELAY (in seconds) after the user stops scrolling
+       before the list snaps to the nearest project. Now it reads as a literal
+       time: 0 = snap immediately, higher = longer pause first. Range 0..2s, so
+       one end is an instant snap trigger and the other a slow, deliberate one. */
+    var snapTime = (window.LIST_SNAP_TIME != null ? window.LIST_SNAP_TIME : 0.15);
+    var SNAP_IDLE_MS = Math.round(Math.max(0, Math.min(2, snapTime)) * 1000);
     var VEL_THRESH   = 0.02;  /* if speed below this, treat as idle */
 
     if (drag.on) {
       /* dragging — nothing else moves */
       state.snapTarget = null;
+    } else if (stp.on) {
+      /* STEP spring (step method; also arrow keys + go-to-project in either method) */
+      stepSpring(dt);
+      /* a go-to-project trip has settled on its project → hand back (the
+         caller opens it). Fired after this frame's transform is applied below. */
+      if (!stp.on && go && go.g === stp.g) {
+        var goCb = go.cb; go = null;
+        setTimeout(function () { goCb(true); }, 0);
+      }
     } else if (Math.abs(state.velY) > VEL_THRESH) {
       /* user just gave input; let inertia play out, no snap yet */
       state.scrollY += state.velY * dt;
@@ -758,8 +1108,8 @@
        (item 0 centered) or bottom (last item centered). */
     if (!isInfinite()) {
       var flo2 = scrollMin(), fhi2 = scrollMax();
-      if (state.scrollY < flo2) { state.scrollY = flo2; state.velY = 0; if (state.snapTarget != null && state.snapTarget < flo2) state.snapTarget = flo2; }
-      else if (state.scrollY > fhi2) { state.scrollY = fhi2; state.velY = 0; if (state.snapTarget != null && state.snapTarget > fhi2) state.snapTarget = fhi2; }
+      if (state.scrollY < flo2) { state.scrollY = flo2; state.velY = 0; stp.v = 0; if (state.snapTarget != null && state.snapTarget < flo2) state.snapTarget = flo2; }
+      else if (state.scrollY > fhi2) { state.scrollY = fhi2; state.velY = 0; stp.v = 0; if (state.snapTarget != null && state.snapTarget > fhi2) state.snapTarget = fhi2; }
     }
 
     applyTransform();
@@ -805,7 +1155,7 @@
   }
 
   /* ── events ── */
-  var drag = { on: false, sy: 0, ly: 0, lt: 0, d: 0, downTarget: null };
+  var drag = { on: false, sy: 0, ly: 0, lt: 0, d: 0, downTarget: null, startG: null };
 
   function bindEvents() {
     if (state.boundEvents) return;
@@ -831,6 +1181,9 @@
       if (t && t.closest && t.closest('#tweaks-root')) return;
 
       e.preventDefault();
+      if (stepMode()) { onStepWheel(e); return; }
+      cancelGo();
+      stp.on = false;   /* classic wheel takes over from a key-driven step */
       var spd = (window.LIST_SCROLL_SPEED != null ? window.LIST_SCROLL_SPEED : 4);
       var fr  = scrollFriction();
       /* normalized by (1 - fr) so Scroll Distance is independent of Smoothing */
@@ -847,10 +1200,16 @@
       onDown(e.clientY, e.target);
     });
     document.addEventListener('mousemove', function (e) {
+      /* SAFETY: cancel the drag if the button was released outside the window
+         (a missed mouseup) so moving a free mouse no longer scrolls the list. */
+      if (drag.on && !(e.buttons & 1)) { onUp(e.clientX, e.clientY); return; }
       if (drag.on) onMove(e.clientY);
     });
     document.addEventListener('mouseup', function (e) {
       if (drag.on) onUp(e.clientX, e.clientY);
+    });
+    window.addEventListener('blur', function () {
+      if (drag.on) onUp(-1, -1);
     });
 
     /* touch */
@@ -879,6 +1238,37 @@
     stage.addEventListener('mouseleave', function () {
       applyHoverShift(null);
     });
+
+    /* scroll markers are clickable while shown: down = next project, up =
+       previous (same step as the arrow keys) */
+    document.addEventListener('click', function (e) {
+      var m = e.target && e.target.closest ? e.target.closest('#scroll-marker-down, #scroll-marker-up') : null;
+      if (!m || !m.classList.contains('is-visible')) return;
+      if (!state.on || !state.items.length || window.DISPLAY_MODE === 'gallery' || drag.on) return;
+      stepBy(m.id === 'scroll-marker-down' ? 1 : -1);
+    });
+
+    /* ↑ / ↓ — previous / next project, in BOTH methods (always the eased step
+       spring). Ignored while typing, inside the Tweaks panel, off the home
+       list, mid reel-intro, or with a modifier held. Held keys auto-repeat at
+       most every 110ms (the lead cap keeps it from running ahead). */
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      if (!state.on || !state.items.length || window.DISPLAY_MODE === 'gallery') return;
+      var hv = document.getElementById('home-view');
+      if (!hv || hv.style.display === 'none') return;
+      var t = e.target;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName || '') ||
+                (t.closest && t.closest('#tweaks-root')))) return;
+      if (window.HomeIntro && window.HomeIntro.progress && window.HomeIntro.progress() < 0.999) return;
+      e.preventDefault();
+      var now = performance.now();
+      if (e.repeat && now - keyT < 110) return;
+      keyT = now;
+      if (drag.on) return;
+      stepBy(e.key === 'ArrowDown' ? 1 : -1);
+    });
   }
 
   function onDown(y, target) {
@@ -887,6 +1277,13 @@
     drag.lt = performance.now();
     drag.d  = 0;
     drag.downTarget = target;
+    /* step method: the project the drag starts from (an in-flight step's
+       target counts — grabbing mid-glide means "from where it was going") */
+    drag.startG = stp.on ? stp.g : globalNear(state.scrollY);
+    /* grabbing the list mid go-to-project trip: let the trip finish if this
+       turns out to be a click (onUp), cancel it only once it becomes a drag */
+    drag.goHeld = !!go;
+    if (!go) { stp.on = false; stp.v = 0; }
     state.velY = 0;
     state.lastInputT = performance.now();
     state.snapTarget = null;
@@ -896,6 +1293,11 @@
   }
 
   function onMove(y) {
+    if (drag.goHeld) {
+      if (Math.abs(y - drag.sy) < CLICK_DIST) return;   /* still a click */
+      drag.goHeld = false; cancelGo(); stp.on = false; stp.v = 0;
+      drag.ly = y;
+    }
     var dy  = y - drag.ly;
     var now = performance.now();
     var dt  = now - drag.lt || 1;
@@ -911,20 +1313,39 @@
 
   function onUp(x, y) {
     drag.on = false;
+    /* a click while a go-to-project trip runs: nav is locked — ignore it and
+       let the trip carry on */
+    if (drag.goHeld) { drag.goHeld = false; return; }
+    if (stepMode()) {
+      if (drag.d < CLICK_DIST) { state.velY = 0; springTo(drag.startG != null ? drag.startG : globalNear(state.scrollY)); }
+      else releaseStep();
+    }
     if (drag.d < CLICK_DIST) {
-      /* treat as click — open project under cursor */
+      /* treat as click — the project under the cursor */
       var el = document.elementFromPoint(x, y);
       var item = el && el.closest ? el.closest('.list-item') : null;
-      if (item && item.dataset.id) {
-        window.openProject(item.dataset.id);
-      }
+      if (item && item.dataset.id) clickItem(item);
     }
+  }
+  /* ACTIVE thumbnail → open at once. INACTIVE thumbnail → (if List Display →
+     Inactive thumbnails → Inactive selectable is on) glide it to the active
+     slot, nav locked for the trip — it does NOT open; the user clicks it again
+     once it's active. Off → inactive thumbs ignore the click. */
+  function clickItem(item) {
+    if (window.__navLockId) return;
+    var id = item.dataset.id;
+    var g = globalForEl(item), cur = stp.on ? stp.g : globalNear(state.scrollY);
+    if (g === cur) { window.openProject(id); return; }
+    if (window.LIST_INACTIVE_SELECTABLE === false) return;
+    navLock(id);
+    goToGlobal(g, function () { navUnlock(); });
   }
 
   /* ── destroy ── */
   function destroy() {
     if (state.raf) { cancelAnimationFrame(state.raf); state.raf = null; }
     state.on = false;
+    cancelGo();   /* a trip in flight can't finish now — its cb unlocks nav */
   }
 
   /* ── resize: rebuild (positions are normalized so this is safe) ── */
@@ -937,7 +1358,10 @@
       if (document.getElementById('home-view') &&
           !document.getElementById('home-view').classList.contains('hidden') &&
           window.DISPLAY_MODE !== 'gallery') {
-        build({ preserveScroll: true });
+        /* resize thumbs IN PLACE when possible (no innerHTML rewrite) so <video>
+           tiles don't flicker; fall back to a full rebuild only when the DOM
+           can't be reused (item set / copy coverage changed). */
+        if (!relayout()) build({ preserveScroll: true });
       }
     });
   });
@@ -950,6 +1374,41 @@
     setProgressCallback: function (fn) { state.onProgress = fn; },
     setRebuiltCallback: function (fn) { state.onRebuilt = fn; },
     repositionMarker: function () { positionMarker(); },
-    getItems: function () { return state.items.map(function (it) { return it.p; }); }
+    /* is the list parked at its very top? (used by the reel intro to decide
+       when an upward scroll should slide the reel back down) */
+    atTop: function () {
+      if (!state.items.length) return true;
+      /* step method: not "at top" while a step is gliding there, or while the
+         swipe that stepped is still streaming (its momentum tail must not
+         slide the reel back down — that takes a NEW upward gesture) */
+      if (stepMode() && (stp.on || (wg.stepped && performance.now() - wg.lastT < GESTURE_GAP_MS))) return false;
+      if (!isInfinite()) return state.scrollY <= scrollMin() + 1.5;
+      var pr = computeProgress();
+      return pr.idx === 0 && Math.abs(pr.frac) < 0.02;
+    },
+    /* kill momentum + any pending snap (the reel intro took the wheel over) */
+    stop: function () {
+      state.velY = 0;
+      state.snapTarget = null;
+      state.lastInputT = performance.now();
+      /* step method: the reel intro is consuming this gesture — mark it as
+         already used, so its momentum tail reaching the list after the reveal
+         lands doesn't also step a project (a new flick still does) */
+      var now = performance.now();
+      wg.stepped = true; wg.lastT = now; wg.lastStepT = now; wg.acc = 0;
+      wg.peak = Infinity; wg.falling = false; wg.trough = Infinity;
+    },
+    getItems: function () { return state.items.map(function (it) { return it.p; }); },
+    /* glide project `id` to the active slot, then cb(true) once settled —
+       cb(false) if other input cancels it. Returns false if it can't start. */
+    goToProject: function (id, cb) {
+      if (!state.on) return false;
+      for (var k = 0; k < state.items.length; k++) {
+        if (state.items[k].p.id === id) { goToGlobal(globalForIdx(k), cb || function () {}); return true; }
+      }
+      return false;
+    },
+    navLock: navLock,
+    navUnlock: navUnlock
   };
 })();

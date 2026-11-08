@@ -45,13 +45,23 @@
     }
     stack.innerHTML = html;
 
-    /* click a title → open that project (delegated handler, bound once) */
+    /* click a title (delegated handler, bound once):
+         ACTIVE (centred) title → open that project at once.
+         INACTIVE title (only clickable when Inactive titles → Inactive
+         selectable is on) → glide the list so it becomes the active one. It
+         does NOT open — the user clicks it again once it's active. Nav is
+         locked for the glide (every other title and thumbnail inert — see
+         renderTitleStack + ListGallery.navLock) and unlocked once it lands, or
+         if other input (wheel, drag, keys) cancels the glide. */
     if (!stack._clickBound) {
       stack._clickBound = true;
       stack.addEventListener('click', function (e) {
         var row = e.target && e.target.closest ? e.target.closest('.lp-title-row') : null;
-        if (!row || !row.dataset.id) return;
-        window.openProject(row.dataset.id);
+        if (!row || !row.dataset.id || window.__navLockId) return;
+        var id = row.dataset.id, LG = window.ListGallery;
+        if (row.classList.contains('is-centered') || !LG || !LG.goToProject) { window.openProject(id); return; }
+        LG.navLock(id);
+        if (!LG.goToProject(id, function () { LG.navUnlock(); })) LG.navUnlock();
       });
     }
   }
@@ -87,8 +97,15 @@
     var o1   = (window.TITLE_OPACITY_1   != null ? window.TITLE_OPACITY_1   : 0.75);
     var o2   = (window.TITLE_OPACITY_2   != null ? window.TITLE_OPACITY_2   : 0.5);
     var o3   = (window.TITLE_OPACITY_3   != null ? window.TITLE_OPACITY_3   : 0.28);
+    var s1   = (window.TITLE_SIZE_1      != null ? window.TITLE_SIZE_1      : 1);
+    var s2   = (window.TITLE_SIZE_2      != null ? window.TITLE_SIZE_2      : 1);
+    var s3   = (window.TITLE_SIZE_3      != null ? window.TITLE_SIZE_3      : 1);
+    /* per-side values (Inactive titles → 1st/2nd/3rd above / below), built in
+       applyTweaks; the shared b/o/s above are only the fallback */
+    var SIDES = window.TITLE_SIDES || null;
 
     var centerFloat = progress.idx + progress.frac;
+    var stackLeft = null, panelEdge = 0, EDGE_GAP = 12;   /* hover edge guard (measured lazily, once per frame) */
 
     for (var i = 0; i < n; i++) {
       var raw = i - centerFloat;
@@ -100,22 +117,34 @@
         while (raw < -n / 2) raw += n;
       }
       var absD = Math.abs(raw);
-      var op, blur;
+      var op, blur, sc;
+      /* ABOVE the active slot (raw < 0 → drawn higher) or BELOW it. Both sides
+         start from the active look at 0, so crossing the centre is seamless. */
+      if (SIDES) {
+        var sd = raw < 0 ? SIDES.up : SIDES.down;
+        b1 = sd.b[0]; b2 = sd.b[1]; b3 = sd.b[2];
+        o1 = sd.o[0]; o2 = sd.o[1]; o3 = sd.o[2];
+        s1 = sd.s[0]; s2 = sd.s[1]; s3 = sd.s[2];
+      }
       if (absD <= 1) {
         op   = _lerp(1,  o1, absD);
         blur = _lerp(0,  b1, absD);
+        sc   = _lerp(1,  s1, absD);
       } else if (absD <= 2) {
         var t2 = absD - 1;
         op   = _lerp(o1, o2, t2);
         blur = _lerp(b1, b2, t2);
+        sc   = _lerp(s1, s2, t2);
       } else if (absD <= 3) {
         var t3 = absD - 2;
         op   = _lerp(o2, o3, t3);
         blur = _lerp(b2, b3, t3);
+        sc   = _lerp(s2, s3, t3);
       } else {
         var t4 = Math.min(1, (absD - 3) / 0.5);
         op   = _lerp(o3, 0, t4);
         blur = b3;
+        sc   = s3;
       }
       var row = rows[i];
       /* alignment about the stack's x anchor is done with translateX so the
@@ -123,7 +152,10 @@
          right=-100%. The Y is the row's stacked offset, centered via -50%. */
       var ax = (window.TITLE_ALIGN === 'center') ? '-50%'
              : (window.TITLE_ALIGN === 'right')  ? '-100%' : '0px';
-      row.style.transform = 'translate(' + ax + ', calc(' + (raw * rowH) + 'px - 50%))';
+      /* + size by distance (1st/2nd/3rd size), about the alignment origin set
+         in CSS (.lp-title-row transform-origin = --title-origin) */
+      row.style.transform = 'translate(' + ax + ', calc(' + (raw * rowH) + 'px - 50%))'
+                          + (Math.abs(sc - 1) > 0.0005 ? ' scale(' + sc.toFixed(4) + ')' : '');
       /* set values via CSS custom properties so the :hover override (which
          uses !important) can interrupt them cleanly. The default state has
          no CSS transition on opacity/filter — these vars get re-set every
@@ -133,6 +165,29 @@
       row.style.setProperty('--row-filter', blur > 0.01 ? ('blur(' + blur.toFixed(2) + 'px)') : 'none');
       /* mark the centered (active) row so only IT enlarges on hover */
       var centered = absD < 0.5;
+      /* HOVER-SCALE EDGE GUARD: the hover scale grows from the title's CENTRE,
+         so a long title at a big scale pushes its left edge past the toolbar —
+         and the toolbar (.left, its own fixed layer above #home-projects) paints
+         over it, cutting the title off. Shift the hovered title right by exactly
+         the overlap (--title-hover-shift, used by the hover rules) so it stays
+         EDGE_GAP clear of the toolbar; centred growth is untouched otherwise. */
+      if (centered && row.firstElementChild) {
+        var inner = row.firstElementChild, iw = inner.offsetWidth;
+        var hs = (window.TITLE_HOVER_SCALE != null ? window.TITLE_HOVER_SCALE : 1.08);
+        var shift = 0;
+        if (hs > 1 && iw) {
+          if (stackLeft == null) {
+            stackLeft = stack.getBoundingClientRect().left;
+            var lw = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--left-w'));
+            panelEdge = isNaN(lw) ? 0 : lw;
+          }
+          var rowL = stackLeft + (ax === '-50%' ? -iw / 2 : (ax === '-100%' ? -iw : 0));
+          var grownL = rowL + iw / 2 - (iw * hs) / 2;
+          shift = Math.max(0, panelEdge + EDGE_GAP - grownL);
+        }
+        var sv = shift ? shift.toFixed(1) + 'px' : '0px';
+        if (inner._hs !== sv) { inner._hs = sv; inner.style.setProperty('--title-hover-shift', sv); }
+      }
       if (centered) { if (!row.classList.contains('is-centered')) row.classList.add('is-centered'); }
       else if (row.classList.contains('is-centered')) row.classList.remove('is-centered');
       /* Pointer-events: only rows within visible range (±3 slots) are
@@ -143,6 +198,9 @@
       var selectable = (window.TITLE_INACTIVE_SELECTABLE === false)
         ? (absD < 0.5)
         : (absD <= 3);
+      /* NAV LOCK (a go-to-project trip from a clicked inactive title/thumb):
+         every title but the destination is inert until the trip ends */
+      if (window.__navLockId) selectable = (row.dataset.id === window.__navLockId);
       row.style.pointerEvents = selectable ? 'auto' : 'none';
     }
   }
@@ -166,15 +224,36 @@
   /* Home-view variant: just the social icons + about link + a divider, as one
      unit ("Social+About"). Absolutely positioned via .lp-social-about so it can
      be moved with its own Y tweak; the bio is a separate movable block below. */
-  function socialAboutHTML(aboutOnclick, aboutLabel) {
-    return '<div class="lp-social-about">'
+  function socialAboutHTML(aboutOnclick, aboutLabel, aboutKind) {
+    return '<div class="lp-social">'
       + '<div class="social-row">'
       + '<a href="https://www.instagram.com/matikalter" target="_blank" class="social-icon">' + svgIG + '</a>'
       + '<a href="https://www.linkedin.com/in/matikalter/" target="_blank" class="social-icon">' + svgLI + '</a>'
       + '<a href="mailto:mkalterr@gmail.com" class="social-icon">' + svgEM + '</a>'
-      + '<span class="about-link" onclick="' + aboutOnclick + '">' + aboutLabel + '</span>'
-      + '</div>'
-      + '</div>';
+      + '</div></div>'
+      + (aboutOnclick
+          ? '<div class="lp-about">'
+            + '<span class="about-link" data-kind="' + (aboutKind || '') + '" onclick="' + aboutOnclick + '">' + aboutLabel + '</span>'
+            + '</div>'
+          : '');
+  }
+  /* Link label markup for the home ('+ about') / about-page ('× close') states.
+     The WHOLE string is user-editable (glyph included); a short symbol first
+     token keeps its slightly smaller, lighter treatment. */
+  function linkLabelHTML(raw, glyphSize) {
+    var s = String(raw == null ? '' : raw);
+    var m = s.match(/^(\S{1,2})\s+([\s\S]*)$/);
+    if (m && !/[0-9a-z]/i.test(m[1])) {
+      return '<span style="font-size:' + glyphSize + 'px;font-weight:300;line-height:1">'
+           + m[1] + '</span>&nbsp;' + m[2];
+    }
+    return s;
+  }
+  function aboutLinkHTML() {
+    return linkLabelHTML(window.ABOUT_LABEL != null ? window.ABOUT_LABEL : '+ about', 15);
+  }
+  function closeLinkHTML() {
+    return linkLabelHTML(window.CLOSE_LABEL != null ? window.CLOSE_LABEL : '\u00d7 close', 14);
   }
 
   /* Divider: its own absolutely-positioned block (home + about views) with an
@@ -187,10 +266,157 @@
      views (absent on project pages). Position/size/align/visibility all driven
      by CSS vars from the "Toolbar" tweaks. */
   function gifHTML() {
-    /* the hero image is now a 4-clip cycling sequence (js/hero-cycle.js);
-       fall back to the plain Jumpdude gif if that script hasn't loaded. */
-    if (window.HeroCycle) return window.HeroCycle.gifHTML();
-    return '<div class="lp-gif"><a href="#/project/playground" aria-label="View Playground"><img src="assets/playground/Jumpdude-b.gif" alt="" draggable="false"><span class="lp-gif-hot"></span></a></div>';
+    /* single hero image (LTX_Shapes_Single_1080) with idle + hover states. The
+       .lp-gif-stack + .lp-gif-media.is-current wrapper is kept so all Hero Image
+       controls (size via --gif-size, blur/hue/mask/hover via ".lp-gif a") apply. */
+    return '<div class="lp-gif"><a href="#/project/playground" aria-label="View Playground">'
+         +   '<div class="lp-gif-stack">'
+         +     '<video class="lp-gif-media is-current lp-gif-big" style="transition:none" src="assets/playground/LTX_Shapes_Single_1080.mp4" muted playsinline autoplay preload="auto"></video>'
+         +     '<video class="lp-gif-media lp-gif-big" style="transition:none" src="assets/playground/LTX_Shapes_Single_1080.mp4" muted playsinline preload="auto"></video>'
+         +   '</div>'
+         +   '<span class="lp-gif-hot"></span>'
+         + '</a></div>';
+  }
+
+  /* SEAMLESS HERO LOOP — native <video loop> stalls ~1 frame at the wrap while
+     it re-decodes the keyframe at t=0 (a general browser behaviour, not clip-
+     specific). The clip's last frame is authored to flow into its first, so the
+     ONLY defect is that freeze. Two identical copies hand off at the seam.
+
+     TWO things make the hand-off actually frame-exact:
+       1. The reveal is SYNCHRONOUS. The previous build awaited incoming.play()'s
+          promise before swapping the visible copy — and while it waited, the
+          outgoing copy ran off its end and sat frozen on its last frame. THAT
+          wait was the stall being reported.
+       2. The parked copy is held with playbackRate = 0 rather than pause().
+          A rate-0 element stays in the PLAYING state, so restoring rate 1 resumes
+          on the very next frame, whereas play() after a real pause() spins the
+          decode pipeline back up over several frames. (Feature-detected; falls
+          back to pause/play where rate 0 is refused.)
+
+     The swap fires from requestVideoFrameCallback on the copy that's on screen,
+     the instant its FINAL frame has been presented — so the next frame the
+     compositor shows is the other copy's frame 0: exactly the authored seam.
+
+     The same controller owns the "Freeze when idle" mode: pause() holds the
+     current frame, play() resumes from it (never a reset). */
+  function initHeroLoop() {
+    if (window.HeroLoop && window.HeroLoop.destroy) window.HeroLoop.destroy();
+    window.HeroLoop = null;
+    var stack = document.querySelector('.lp-gif-stack');
+    if (!stack) return;
+    var vids = stack.querySelectorAll('.lp-gif-media');
+    if (vids.length < 2) return;
+    var a = vids[0], b = vids[1];
+    var cur = a, nxt = b;
+    var running = false, dead = false, pollRAF = 0;
+    var frameDur = 1 / 30, lastMT = -1;
+
+    var RATE0 = (function () {
+      try { a.playbackRate = 0; var ok = (a.playbackRate === 0); a.playbackRate = 1; return ok; }
+      catch (e) { return false; }
+    })();
+
+    function hold(v) {          /* stop advancing, keep the pipeline warm */
+      if (RATE0) {
+        try { v.playbackRate = 0; } catch (e) {}
+        if (v.paused) { var p = v.play(); if (p && p.catch) p.catch(function () {}); }
+      } else { try { v.pause(); } catch (e) {} }
+    }
+    function run(v) {           /* advance at normal speed — instant when rate-held */
+      if (RATE0) { try { v.playbackRate = 1; } catch (e) {} }
+      if (v.paused) { var p = v.play(); if (p && p.catch) p.catch(function () {}); }
+    }
+    function park(v) {          /* hold at frame 0, decoded, ready to take over */
+      try { v.currentTime = 0; } catch (e) {}
+      hold(v);
+    }
+    function atEnd(v, t) {
+      var d = v.duration || 0;
+      return d > 0 && (d - t) <= frameDur * 1.35;
+    }
+    function swap() {
+      var incoming = nxt, outgoing = cur;
+      run(incoming);
+      incoming.classList.add('is-current');    /* seam: last frame → first frame */
+      outgoing.classList.remove('is-current');
+      cur = incoming; nxt = outgoing;
+      lastMT = -1;
+      park(outgoing);                          /* reset while hidden */
+      arm();
+    }
+    function arm() {
+      if (dead || !running) return;
+      var v = cur;
+      if (v.requestVideoFrameCallback) {
+        v.requestVideoFrameCallback(function (now, meta) {
+          if (dead || !running || v !== cur) return;
+          var mt = meta.mediaTime;
+          if (lastMT >= 0) {
+            var dt = mt - lastMT;               /* learn the real frame duration */
+            if (dt > 0.004 && dt < 0.2) frameDur = frameDur * 0.6 + dt * 0.4;
+          }
+          lastMT = mt;
+          if (atEnd(v, mt)) { swap(); return; }
+          arm();
+        });
+        return;
+      }
+      if (pollRAF) return;                      /* no rVFC (Firefox) — rAF poll */
+      pollRAF = requestAnimationFrame(function poll() {
+        pollRAF = 0;
+        if (dead || !running) return;
+        if (atEnd(cur, cur.currentTime)) { swap(); return; }
+        pollRAF = requestAnimationFrame(poll);
+      });
+    }
+    function play() {
+      if (dead || running) return;
+      running = true;
+      run(cur);
+      arm();
+    }
+    function pause() {
+      if (dead) return;
+      running = false;
+      if (pollRAF) { cancelAnimationFrame(pollRAF); pollRAF = 0; }
+      hold(cur);
+    }
+    /* FREEZE WHEN IDLE: off → always running; on → running only while the hero
+       hotspot is hovered, resuming from wherever it was held. */
+    function applyMode() {
+      if (dead) return;
+      if (!window.GIF_FREEZE_IDLE) { play(); return; }
+      var hot = document.querySelector('.lp-gif-hot');
+      var hovered = false;
+      try { hovered = !!(hot && hot.matches(':hover')); } catch (e) {}
+      if (hovered) play(); else pause();
+    }
+
+    function onEnded(e) {                       /* safety net — never stall dead */
+      if (dead) return;
+      if (e.target === cur) { if (running) swap(); }
+      else park(e.target);
+    }
+    a.addEventListener('ended', onEnded);
+    b.addEventListener('ended', onEnded);
+
+    var hot = document.querySelector('.lp-gif-hot');
+    if (hot) {
+      hot.addEventListener('mouseenter', function () { if (window.GIF_FREEZE_IDLE) play(); });
+      hot.addEventListener('mouseleave', function () { if (window.GIF_FREEZE_IDLE) pause(); });
+    }
+
+    park(b);
+    window.HeroLoop = {
+      play: play, pause: pause, applyMode: applyMode,
+      destroy: function () {
+        dead = true; running = false;
+        if (pollRAF) { cancelAnimationFrame(pollRAF); pollRAF = 0; }
+        try { a.pause(); b.pause(); } catch (e) {}
+      }
+    };
+    applyMode();
   }
 
   /* map a tag key → display label (tagDefs is the full vocabulary; fall
@@ -204,15 +430,29 @@
 
   /* render a project's tags as .tag-pill chips */
   function tagPillsHTML(tags) {
-    return (tags || []).map(function (t) {
-      return '<span class="tag-pill">' + labelFor(t) + '</span>';
+    return (tags || []).filter(function (t) { return !(window.tagIsDeleted && window.tagIsDeleted(t)); }).map(function (t) {
+      return '<span class="tag-pill" data-tag="' + String(t).replace(/"/g, '') + '">' + labelFor(t) + '</span>';
     }).join('');
   }
 
-  function filterButtonsHTML() {
+  /* Each pill sits in a .fp-item wrapper together with its SELECTION GLYPH
+     (Filter buttons → Selection glyph; CSS in index.html, html.fsel-on). The
+     wrapper carrying .fs-on shows the glyph (and pushes the pill when Push is
+     on). `onKey` = which item renders in the shown state: fillFilterLists
+     passes the PREVIOUS selection, then flips to the new one once styles
+     resolve, so the glyph slides across the re-render (same trick as the
+     project-page logo glyph). */
+  function escGlyph(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function filterButtonsHTML(onKey) {
+    var g = escGlyph(window.FSEL_GLYPH != null ? window.FSEL_GLYPH : '•');
     return filterDefs.map(function (f) {
       var isActive = activeFilters[f.key] ? ' active' : '';
-      return '<span class="filter-pill' + isActive + '" data-filter="' + f.key + '">' + f.label + '</span>';
+      return '<span class="fp-item' + (f.key === onKey ? ' fs-on' : '') + '" data-fkey="' + f.key + '">'
+           + '<span class="fp-glyph" aria-hidden="true">' + g + '</span>'
+           + '<span class="filter-pill' + isActive + '" data-filter="' + f.key + '">' + f.label + '</span>'
+           + '</span>';
     }).join('');
   }
 
@@ -220,10 +460,18 @@
     function stateContent(cfg) {
       if (cfg.type === 'image' && cfg.image)
         return '<img src="' + cfg.image + '" alt="logo" draggable="false">';
-      return cfg.text || '';
+      return (window.LOGO_TEXT != null && window.LOGO_TEXT !== '') ? window.LOGO_TEXT : (cfg.text || '');
     }
     var idleStyle = LOGO.idle.style ? ' style="' + LOGO.idle.style + '"' : '';
-    var html = '<div class="logo-zone" onclick="window.goHome()">'
+    /* rendered in the PREVIOUS glyph state; syncLogoGlyph (index.html) flips it
+       to the route's state after insert so the slide plays across re-renders */
+    /* the last measured glyph shift + left offset go INLINE so the new zone's
+       very first style resolve already has the right start position */
+    var lgVars = (window.__lgShift != null ? '--lg-shift:' + window.__lgShift + 'px;' : '')
+               + (window.__logoOx != null ? '--logo-ox:' + window.__logoOx + 'px;' : '');
+    var html = '<div class="logo-zone' + (window.__lgIn ? ' lg-in' : '') + '"'
+             + (lgVars ? ' style="' + lgVars + '"' : '') + ' onclick="window.goHome()">'
+             + '<span class="logo-glyph" aria-hidden="true">' + (window.LOGO_GLYPH || '\u2190') + '</span>'
              + '<span class="logo-idle"' + idleStyle + '>' + stateContent(LOGO.idle)  + '</span>'
              + '<span class="logo-hover">'                  + stateContent(LOGO.hover) + '</span>'
              + '</div>';
@@ -249,24 +497,28 @@
     var lp = document.getElementById('left-panel');
     lp.innerHTML =
         buildLogoHTML()
-      + socialAboutHTML('window.openAbout()',
-                      '<span style="font-size:15px;font-weight:300;line-height:1">+</span>&nbsp;about')
+      + socialAboutHTML('window.openAbout()', aboutLinkHTML(), 'about')
       + dividerHTML()
       + '<div class="bio-short lp-home-bio">' + BIO_SHORT + '</div>'
-      + gifHTML();
+      + gifHTML()
+      /* TOOLBAR PLACEMENT copy of the filter buttons (Filter buttons → Position
+         → Placement: Toolbar, html.filter-tb). It must live INSIDE the toolbar:
+         the main-content block sits in #home-projects, a fixed layer painted
+         BELOW the toolbar (z 5), so it could never show over it. CSS shows
+         exactly one of the two sets (the main one again while the toolbar is
+         collapsed); both are always rendered + kept in sync. */
+      + '<div class="lp-filter-block lp-filter-tb"><div class="filter-row" id="filter-list-tb"></div></div>';
+    initHeroLoop();
     /* The title stack + filter buttons live in the MAIN CONTENT area
        (#home-view, see index.html), NOT the toolbar DOM — so they don't slide
        off / hide when the toolbar collapses into its drawer. Populate the
        filter list (its static container is already in #home-view). */
-    var fl = document.getElementById('filter-list');
-    if (fl) fl.innerHTML = filterButtonsHTML();
-    bindFilters();
+    fillFilterLists();
     /* seed the title stack now — first onProgress will refresh it */
     rebuildTitleStackRows();
     renderTitleStack({ idx: 0, frac: 0, idxFloat: 0 });
     /* seed the mini-info from whatever is currently centered */
     renderMiniInfo(currentHomeActiveId ? getProjectById(currentHomeActiveId) : null);
-    if (window.HeroCycle) window.HeroCycle.init();
   }
 
   /* About: left panel mirrors the HOME view exactly — logo at --logo-y and the
@@ -277,41 +529,88 @@
     var lp = document.getElementById('left-panel');
     lp.innerHTML =
         buildLogoHTML()
-      + socialAboutHTML('window.goHome()',
-                      '<span style="font-size:14px;font-weight:300;line-height:1">&#215;</span>&nbsp;close')
+      /* no "× close" link — the logo (with its route glyph) returns home */
+      + socialAboutHTML(null)
       + dividerHTML()
       + gifHTML();
-    if (window.HeroCycle) window.HeroCycle.init();
+    initHeroLoop();
+  }
+
+  /* SOFT-HYPHENATE long words: a single long title word (e.g. "Illustrations")
+     can't fit a narrow toolbar, and CSS hyphens:auto only prints a hyphen when
+     the DICTIONARY has a syllable break that fits — at large type in a narrow
+     panel none does, so the browser fell back to overflow-wrap and broke the
+     word with NO hyphen. Inserting a soft hyphen (U+00AD) between every
+     character of long words gives a break opportunity at EVERY character, and
+     the browser draws the hyphen at whichever one it uses. Invisible when the
+     word isn't broken. */
+  function softHyphenate(s) {
+    return String(s == null ? '' : s).replace(/[A-Za-z\u00C0-\u024F]{8,}/g, function (w) {
+      return w.split('').join('\u00AD');
+    });
+  }
+  /* LAST-RESORT hyphenation for the project title: words wrap whole by default;
+     only a word WIDER THAN THE TITLE BOX on its own gets the soft hyphens. Each
+     word is measured unbroken (.tw-measure turns off every break mode), then the
+     title is rewritten. A ResizeObserver re-fits on width / font-size change
+     (keyed so its own rewrite can't loop). */
+  function escTxt(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  function fitTitleWords(el) {
+    if (!el || !el.isConnected) return;
+    var raw = el.getAttribute('data-raw') || '';
+    var max = el.clientWidth; if (!max) return;
+    var key = max + '|' + getComputedStyle(el).fontSize + '|' + raw;
+    if (el.__twKey === key) return;
+    el.__twKey = key;
+    el.classList.add('tw-measure');
+    el.innerHTML = raw.split(/(\s+)/).map(function (w) { return /\S/.test(w) ? '<span>' + escTxt(w) + '</span>' : w; }).join('');
+    var out = Array.prototype.map.call(el.childNodes, function (n) {
+      if (n.nodeType !== 1) return n.textContent;
+      return n.getBoundingClientRect().width > max + 0.5 ? softHyphenate(escTxt(n.textContent)) : escTxt(n.textContent);
+    }).join('');
+    el.classList.remove('tw-measure');
+    el.innerHTML = out;
+  }
+  var titleRO = window.ResizeObserver ? new ResizeObserver(function (es) { es.forEach(function (e) { fitTitleWords(e.target); }); }) : null;
+  window.addEventListener('resize', function () { fitTitleWords(document.querySelector('.lp-proj-title')); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () {
+    var el = document.querySelector('.lp-proj-title'); if (el) { el.__twKey = null; fitTitleWords(el); }
+  });
+
+  /* does this project embed the posters grid as a content block? (its hover
+     descriptions reuse the #pg-desc overlay, so the panel must render it) */
+  function hasPostersBlock(p) {
+    return !!(p.content && p.content.some(function (b) { return b && b.type === 'posters'; }));
   }
 
   /* Project: title + year + tags + description */
   function setLeftProject(p) {
     var lp = document.getElementById('left-panel');
-    var align = window.BACK_ALIGN || 'left';
-    var playAlign = window.PLAY_ALIGN || 'left';
     lp.innerHTML =
         buildLogoHTML()
-      + '<div style="margin-top:4px">'
-      +   '<div class="lp-proj-title">' + p.title + '</div>'
+      + '<div class="lp-proj-info">'
+      +   '<div class="lp-proj-title" data-raw="' + escTxt(p.title || '').replace(/"/g, '&quot;') + '">' + escTxt(p.title || '') + '</div>'
       +   (p.year ? '<div class="lp-proj-year">' + p.year + '</div>' : '')
       +   '<div class="lp-proj-tags tag-row">'
       +     tagPillsHTML(p.tags)
       +   '</div>'
       +   '<div class="lp-desc-wrap">'
       +     '<div class="lp-proj-desc">' + (p.desc || 'Project description coming soon.') + '</div>'
-      +     (((p.playgroundImages && p.playgroundImages.length) || (p.postersImages && p.postersImages.length))
-            ? '<div class="pg-desc" id="pg-desc" aria-hidden="true">'
-              + '<div class="proj-text-title" id="pg-desc-title"></div>'
-              + '<div class="proj-text-body" id="pg-desc-body"></div>'
-              + '</div>'
-            : '')
       +   '</div>'
       + '</div>'
-      + (p.play
-          ? '<a class="lp-play al-' + playAlign + '" href="' + p.play + '" target="_blank" rel="noopener">' + (window.PLAY_LABEL != null ? window.PLAY_LABEL : 'Play') + '</a>'
-          : '')
-      + '<div class="lp-back al-' + align + '" onclick="window.goHome()">'
-      +   (window.BACK_LABEL != null ? window.BACK_LABEL : 'Back') + '</div>';
+      + (window.projButtonsHTML ? window.projButtonsHTML(p) : '')
+      /* per-item hover description (playground / posters): the LAST in-flow item,
+         so showing / hiding it never moves the description or buttons above */
+      + (((p.playgroundImages && p.playgroundImages.length) || (p.postersImages && p.postersImages.length) || hasPostersBlock(p))
+          ? '<div class="pg-desc" id="pg-desc" aria-hidden="true">'
+            + '<div class="proj-text-title" id="pg-desc-title"></div>'
+            + '<div class="proj-text-body" id="pg-desc-body"></div>'
+            + '</div>'
+          : '');
+    var tEl = lp.querySelector('.lp-proj-title');
+    fitTitleWords(tEl);
+    if (titleRO && tEl) titleRO.observe(tEl);
+    /* no Back button — the logo (with its route glyph) returns home */
   }
 
   /* ── Vid Description (playground) — surfaced in the TOOLBAR on tile hover /
@@ -325,53 +624,82 @@
   window.pgDescShow = function (title, body) {
     var box = document.getElementById('pg-desc');
     if (!box) return;
-    var pd = document.querySelector('.lp-proj-desc');
-    if (window.PG_DESC_SHOW === false) {
-      box.classList.remove('is-visible');
-      if (pd) pd.classList.remove('pg-hidden');
-      return;
-    }
+    if (window.PG_DESC_SHOW === false) { box.classList.remove('is-visible'); return; }
     var tEl = document.getElementById('pg-desc-title');
     var bEl = document.getElementById('pg-desc-body');
     if (tEl) { tEl.innerHTML = title || ''; tEl.style.display = title ? '' : 'none'; }
     if (bEl) { bEl.innerHTML = body || '';  bEl.style.display = body ? '' : 'none'; }
     var has = !!(title || body);
-    box.classList.toggle('is-visible', has);
-    if (pd) pd.classList.toggle('pg-hidden', has);   /* replace proj desc while a vid desc shows */
+    box.classList.toggle('is-visible', has);   /* sits BELOW the project description (no longer replaces it) */
   };
   window.pgDescHide = function () {
     var box = document.getElementById('pg-desc');
     if (box) box.classList.remove('is-visible');
-    var pd = document.querySelector('.lp-proj-desc');
-    if (pd) pd.classList.remove('pg-hidden');
   };
 
   function bindFilters() {
     document.querySelectorAll('.filter-pill').forEach(function (tag) {
+      if (tag._fBound) return;
+      tag._fBound = true;
       tag.addEventListener('click', function () {
         var key = tag.dataset.filter;
-        /* SINGLE-SELECT: only one filter active at a time (radio behavior).
-           Clicking any pill makes it the sole active filter. */
-        activeFilters = {};
-        activeFilters[key] = true;
-        document.querySelectorAll('.filter-pill').forEach(function (t) {
-          t.classList.toggle('active', !!activeFilters[t.dataset.filter]);
-        });
-        /* rebuild list (filtering REMOVES items entirely — list always loops) */
-        if (window.DISPLAY_MODE === 'gallery') {
-          /* gallery: re-layout filtered tiles; titles stay hidden until hover */
-          if (window.GalleryDisplay) window.GalleryDisplay.build();
-          renderSingleTitle(null);
-          renderMiniInfo(null);
-        } else {
-          if (window.ListGallery) window.ListGallery.build();
-          rebuildTitleStackRows();
-        }
-        /* active pill changed → re-evaluate which labels invert */
-        if (window.AdaptiveInvert) window.AdaptiveInvert.refresh();
+        /* SINGLE-SELECT (radio). Navigate to a hashed URL so the filtered view
+           is linkable (#/filter/<key>, or #/ for All); applyRoute reads it back
+           and rebuilds the pills + thumbnails. With the All button switched off
+           (Filter buttons → Buttons), clicking the ACTIVE pill again clears the
+           filter — otherwise there'd be no way back to everything. */
+        var hasAll = filterDefs.some(function (f) { return f.key === 'all'; });
+        if (!hasAll && window.activeFilters && window.activeFilters[key]) { setHash('#/'); return; }
+        setHash(key === 'all' ? '#/' : '#/filter/' + encodeURIComponent(key));
       });
     });
   }
+  /* render the filter buttons into BOTH containers (main content + the toolbar
+     copy) from the current filterDefs + active filter */
+  function fillFilterLists() {
+    var cur = Object.keys(activeFilters || {})[0] || 'all';
+    /* render with the PREVIOUS selection's glyph shown, flip below */
+    var prev = window.__fselKey != null ? window.__fselKey : cur;
+    var html = filterButtonsHTML(prev);
+    ['filter-list', 'filter-list-tb'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.innerHTML = html;
+    });
+    bindFilters();
+    syncFilterSelGlyph();
+    if (prev !== cur) {
+      var items = document.querySelectorAll('.fp-item');
+      if (items.length) getComputedStyle(items[0]).transform;   /* resolve the start state */
+      for (var i = 0; i < items.length; i++) items[i].classList.toggle('fs-on', items[i].getAttribute('data-fkey') === cur);
+    }
+    window.__fselKey = cur;
+    /* toolbar copy: place + clamp inside the toolbar margins (index.html) */
+    if (window.layoutFilterTb) window.layoutFilterTb();
+  }
+  /* SELECTION GLYPH sync: refresh the glyph character in every item and
+     measure the push distance (--fsel-shift = glyph width + gap) — run on each
+     render and on every tweak change (applyTweaks). */
+  function syncFilterSelGlyph() {
+    var ch = window.FSEL_GLYPH != null ? String(window.FSEL_GLYPH) : '•';
+    var gs = document.querySelectorAll('.fp-glyph');
+    for (var i = 0; i < gs.length; i++) if (gs[i].textContent !== ch) gs[i].textContent = ch;
+    var gap = window.FSEL_GAP != null ? Number(window.FSEL_GAP) || 0 : 8;
+    var w = 0;
+    for (var j = 0; j < gs.length && !w; j++) w = gs[j].offsetWidth;   /* hidden lists measure 0 */
+    if (w) document.documentElement.style.setProperty('--fsel-shift', Math.round(w + gap) + 'px');
+  }
+  window.syncFilterSelGlyph = syncFilterSelGlyph;
+  /* Filter buttons → Buttons changed which tags are filters (filterDefs is
+     rebuilt in place by applyFilterList in index.html). If the active filter
+     is no longer offered, drop back to everything; else re-render in place. */
+  window.refreshFilterButtons = function () {
+    var cur = Object.keys(window.activeFilters || {})[0];
+    if (cur && cur !== 'all' && !filterDefs.some(function (f) { return f.key === cur; })) {
+      if (document.documentElement.classList.contains('route-home')) { setHash('#/'); return; }
+    }
+    fillFilterLists();
+    if (window.AdaptiveInvert) window.AdaptiveInvert.refresh();
+  };
 
   /* ── VIEW SWITCHING ────────────────────────────────────────────────── */
   /* ── MINI INFO ── mini-description + tags of the centered project (home).
@@ -381,12 +709,39 @@
     var desc = document.getElementById('mini-desc');
     var tags = document.getElementById('mini-tags');
     if (!wrap || !desc || !tags) return;
-    if (!p) { wrap.classList.add('hidden'); tags.classList.add('hidden'); applyAdaptiveText(); return; }
+    var hv0 = document.getElementById('home-view');
+    if (hv0) hv0.classList.remove('mini-hover');
+    var hit0 = document.getElementById('mini-hit');
+    if (!p) {
+      if (hit0) hit0.classList.remove('on');
+      wrap.classList.add('hidden'); tags.classList.add('hidden'); applyAdaptiveText(); return;
+    }
     wrap.classList.remove('hidden');
     tags.classList.remove('hidden');
     desc.textContent = p.mini || '';
     desc.style.display = p.mini ? '' : 'none';
+    /* the mini description behaves like the centered title: click opens the
+       project, hover puts the title into its hover state */
+    desc.onclick = function () { if (window.openProject) window.openProject(p.id); };
+    desc.onmouseenter = function () {
+      var hv = document.getElementById('home-view');
+      if (hv) hv.classList.add('mini-hover');
+    };
+    desc.onmouseleave = function () {
+      var hv = document.getElementById('home-view');
+      if (hv) hv.classList.remove('mini-hover');
+    };
     tags.innerHTML = tagPillsHTML(p.tags);
+    /* tags behave like the mini description: open the project, hover the title */
+    tags.onclick = desc.onclick;
+    tags.onmouseenter = desc.onmouseenter;
+    tags.onmouseleave = desc.onmouseleave;
+    var hit = document.getElementById('mini-hit');
+    if (hit) {
+      hit.onclick = desc.onclick;
+      hit.onmouseenter = desc.onmouseenter;
+      hit.onmouseleave = desc.onmouseleave;
+    }
     positionMiniTags();
     if (window.AdaptiveInvert) window.AdaptiveInvert.refresh();
   }
@@ -415,8 +770,26 @@
        it also works when rAF is throttled). */
     var ref = (desc.style.display === 'none') ? wrap : desc;
     var box = ref.getBoundingClientRect();
+    /* the tag layer + hit area live INSIDE #home-projects, which the reel intro
+       translates; that transform is applied on top of what we write, so the
+       measured viewport y needs the published lift taken back out. */
+    var lift = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--home-lift'));
+    if (isNaN(lift)) lift = 0;
     tags.style.left = box.left + 'px';
-    tags.style.top  = (box.bottom + 12) + 'px';
+    tags.style.top  = (box.bottom + 12 - lift) + 'px';
+    /* the shared hit area = union of the description + tag-row boxes, so the
+       gaps between the lines and between the pills are hoverable too */
+    var hit = document.getElementById('mini-hit');
+    if (hit) {
+      var tb = tags.getBoundingClientRect();
+      var l = Math.min(box.left, tb.left), t = Math.min(box.top, tb.top);
+      var rr = Math.max(box.right, tb.right), b = Math.max(box.bottom, tb.bottom);
+      hit.style.left = l + 'px';
+      hit.style.top = (t - lift) + 'px';
+      hit.style.width = Math.max(0, rr - l) + 'px';
+      hit.style.height = Math.max(0, b - t) + 'px';
+      hit.classList.add('on');
+    }
   }
   window.positionMiniTags = positionMiniTags;
   window.addEventListener('resize', positionMiniTags);
@@ -452,10 +825,19 @@
     btn.textContent = toGallery
       ? (window.DISP_GALLERY_GLYPH || '\u25a6')
       : (window.DISP_LIST_GLYPH || '\u2630');
+    /* each shown glyph carries its OWN corner radius; the border-radius CSS
+       transition (enabled via .disp-animating during a toggle) eases between
+       the two settings. On non-toggle calls (init / live slider drag) there's
+       no animating class, so it applies instantly. */
+    var rad = toGallery
+      ? (window.DISP_GALLERY_RADIUS != null ? window.DISP_GALLERY_RADIUS : 0)
+      : (window.DISP_LIST_RADIUS != null ? window.DISP_LIST_RADIUS : 0);
+    btn.style.borderRadius = rad + 'px';
   };
 
   /* build whichever display is active; tear down the other. */
-  function applyDisplayMode() {
+  function applyDisplayMode(opts) {
+    var preserve = !opts || opts.preserveScroll !== false;
     var hv = document.getElementById('home-view');
     if (!hv) return;
     var gallery = (window.DISPLAY_MODE === 'gallery');
@@ -470,15 +852,39 @@
     } else {
       if (window.GalleryDisplay) window.GalleryDisplay.destroy();
       /* list seeds its own title stack + mini via the active/rebuilt callbacks */
-      if (window.ListGallery) window.ListGallery.build({ preserveScroll: true });
+      if (window.ListGallery) window.ListGallery.build({ preserveScroll: preserve });
     }
     window.refreshDisplaySwitch();
   }
   window.applyDisplayMode = applyDisplayMode;
 
   window.setDisplayMode = function (mode) {
+    var prev = window.DISPLAY_MODE;
     window.DISPLAY_MODE = (mode === 'gallery') ? 'gallery' : 'list';
     try { localStorage.setItem('displayMode', window.DISPLAY_MODE); } catch (e) {}
+    /* on an ACTUAL mode change, set the border-radius transition DURATION to the
+       real value (it's 0s otherwise) so the switch button's corner radius glides
+       between the list & gallery radii — reset to 0s after so live slider drags
+       stay instant. Works BOTH ways because border-radius is always transitionable. */
+    if (prev !== window.DISPLAY_MODE) {
+      var btn = document.getElementById('display-switch');
+      if (btn) {
+        /* each MODE transition (Gallery → List, List → Gallery) has its own
+           easing + speed (set in applyTweaks from the Tweaks sliders) —
+           independent of which radius each mode happens to use. */
+        var listToGallery = (window.DISPLAY_MODE === 'gallery');
+        var ms = listToGallery
+          ? (window.DISP_L2G_MS != null ? window.DISP_L2G_MS : 400)
+          : (window.DISP_G2L_MS != null ? window.DISP_G2L_MS : 400);
+        var ease = listToGallery
+          ? (window.DISP_L2G_EASE || 'cubic-bezier(0,0,.1,1)')
+          : (window.DISP_G2L_EASE || 'cubic-bezier(.3,0,.8,1)');
+        btn.style.setProperty('--disp-rad-ease', ease);
+        btn.style.setProperty('--disp-rad-dur', (ms / 1000) + 's');
+        clearTimeout(btn._radT);
+        btn._radT = setTimeout(function () { btn.style.setProperty('--disp-rad-dur', '0s'); }, ms + 80);
+      }
+    }
     var hv = document.getElementById('home-view');
     if (hv && hv.style.display !== 'none') applyDisplayMode();
     else window.refreshDisplaySwitch();
@@ -554,6 +960,19 @@
          + '</div>';
   }
 
+  /* SHARED-ASSET PATHS. A block `src` normally names a file inside that
+     project's own folder (assets/<pid>/<src>). If it CONTAINS a slash it is
+     instead read as a path relative to assets/ — e.g.
+     'playground/LTX_Shapes_Single_1080.mp4'
+     from the Lightricks page — so one clip can live in a single folder and be
+     referenced from any number of pages (one file, one download, one cache
+     entry). Each segment is encoded separately so the slashes survive. */
+  function assetPath(pid, src) {
+    src = String(src == null ? '' : src);
+    var parts = (src.indexOf('/') !== -1 ? src : (pid + '/' + src)).split('/');
+    return 'assets/' + parts.map(encodeURIComponent).join('/');
+  }
+
   function blockHTML(b, pid) {
     var full = b.full ? ' full' : '';
     if (b.type === 'video') {
@@ -572,9 +991,15 @@
        Optional `ratio` locks the cell + contain-fits if you need a fixed box. */
     if (b.type === 'localvideo') {
       var lvfull = (b.full === false) ? '' : ' full';
-      var lvratio = b.ratio ? ' proj-localvideo-ratio" style="aspect-ratio:' + b.ratio + '"' : '"';
+      var lvst = [];
+      if (b.ratio) lvst.push('aspect-ratio:' + b.ratio);
+      if (b.alignSelf) lvst.push('align-self:' + b.alignSelf);
+      if (b.mt != null) lvst.push('margin-top:' + b.mt + 'px');
+      if (b.mb != null) lvst.push('margin-bottom:' + b.mb + 'px');
+      var lvratio = (b.ratio ? ' proj-localvideo-ratio' : '') + '"'
+                  + (lvst.length ? ' style="' + lvst.join(';') + '"' : '');
       return '<div class="proj-block' + lvfull + ' proj-localvideo' + lvratio + '>'
-           +   '<video src="assets/' + pid + '/' + encodeURIComponent(b.src) + '" '
+           +   '<video src="' + assetPath(pid, b.src) + '" '
            +   'autoplay muted loop playsinline preload="metadata" '
            +   'data-localzoom="1"></video>'
            +   '<button class="proj-localvideo-play" type="button" aria-label="Play video">'
@@ -598,12 +1023,12 @@
       var rvfull = (b.full === true) ? ' full' : '';
       var rvSt = [];
       if (b.ratio)      rvSt.push('aspect-ratio:' + b.ratio);
-      if (b.col)        rvSt.push('grid-column:' + b.col);
+      if (b.col && !b.__gc) rvSt.push('grid-column:' + (String(b.col) === '2' ? '4 / span 3' : '1 / span 3'));
       if (b.mt != null) rvSt.push('margin-top:' + b.mt + 'px');
       if (b.mb != null) rvSt.push('margin-bottom:' + b.mb + 'px');
       var rvStyle = rvSt.length ? ' style="' + rvSt.join(';') + '"' : '';
       return '<div class="proj-block' + rvfull + ' rich-video-block' + (b.ratio ? ' rv-ratio' : '') + '"' + rvStyle + '>'
-           +   richVideoInnerHTML('assets/' + pid + '/' + encodeURIComponent(b.src))
+           +   richVideoInnerHTML(assetPath(pid, b.src))
            + '</div>';
     }
     if (b.type === 'text') {
@@ -635,6 +1060,22 @@
     /* row: N images side by side; widths auto-justified to equal height.
        An empty/falsy entry renders an invisible spacer that takes one equal
        slot — use it to center a single image into, e.g., the middle third. */
+    if (b.type === 'slideshow') {
+      var ssItems = (b.images || []).map(function (src) {
+        src = String(src || ''); if (!src) return '';
+        var u = assetPath(pid, src);
+        return /\.(mp4|webm|mov)(\?|$)/i.test(src)
+          ? '<video src="' + u + '" muted loop playsinline preload="auto"></video>'
+          : '<img src="' + u + '" alt="" data-zoom="1" draggable="false">';
+      }).join('');
+      return '<div class="proj-block' + full + ' proj-slideshow pss-box" data-speed="' + (b.speed != null ? b.speed : 40) + '"'
+           + (b.interactive ? ' data-interactive="1"' : '')
+           + (window.pssBoxAttrs ? window.pssBoxAttrs(b) : '')
+           + ' style="aspect-ratio:' + (b.ratio || '16/9') + ';' + (window.pssBoxVars ? window.pssBoxVars(b) : '') + '">'
+           +   '<div class="pss-strip" style="gap:' + (b.gap || 0) + 'px">' + (window.pssDividerHTML ? window.pssDividerHTML(b) : '') + ssItems + '</div>'
+           +   (window.pssArrowsHTML ? window.pssArrowsHTML(b) : '')
+           + '</div>';
+    }
     if (b.type === 'row') {
       var items = (b.images || []).map(function (im) {
         if (im && typeof im === 'object' && im.video) {
@@ -657,7 +1098,7 @@
           var lg = (lp.length === 2 && +lp[1]) ? (+lp[0] / +lp[1]) : 1.778;
           return '<div class="proj-row-item proj-row-localvideo" style="flex-grow:' + lg.toFixed(4) + '">'
                +   '<div class="proj-localvideo">'
-               +     '<video src="assets/' + pid + '/' + encodeURIComponent(im.localvideo) + '" '
+               +     '<video src="' + assetPath(pid, im.localvideo) + '" '
                +     'autoplay muted loop playsinline preload="metadata" data-localzoom="1" data-rowvid="1"></video>'
                +     '<button class="proj-localvideo-play" type="button" aria-label="Play video">'
                +       '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>'
@@ -677,6 +1118,12 @@
            regardless of aspect. Marked data-fixedw so measureProjRows leaves it. */
         var fw = (im && typeof im === 'object' && im.w) ? im.w : null;
         var valign = (im && typeof im === 'object' && im.valign) ? im.valign : null;
+        /* optional per-item `maxW` (number=px, string e.g. '66%'=relative): caps the
+           IMAGE inside its slot and centres it, keeping natural aspect (height
+           shrinks with it — unlike `scale`, which only transforms). Use it to sit a
+           narrower image centred under a wider one in the row above. */
+        var imw = (im && typeof im === 'object' && im.maxW != null)
+          ? ((typeof im.maxW === 'string') ? im.maxW : (im.maxW + 'px')) : null;
         var itCls = 'proj-row-item' + (scl ? (' proj-row-scaled' + aln) : '');
         var styleBits = [];
         if (scl) styleBits.push('--item-scale:' + scl);
@@ -685,8 +1132,9 @@
         var itSt  = styleBits.length ? ' style="' + styleBits.join(';') + '"' : '';
         var fwAttr = fw ? ' data-fixedw="1"' : '';
         return '<div class="' + itCls + '"' + itSt + fwAttr + '>'
-             +   '<img src="assets/' + pid + '/' + encodeURIComponent(src) + '" '
-             +   'alt="" loading="lazy" data-zoom="1" data-rowimg="1">'
+             +   '<img src="' + assetPath(pid, src) + '" '
+             +   'alt="" loading="lazy" data-zoom="1" data-rowimg="1"'
+             +   (imw ? ' style="max-width:' + imw + ';margin-inline:auto"' : '') + '>'
              + '</div>';
       }).join('');
       var rowCls = 'proj-block full proj-row' + (b.center ? ' proj-row-center' : '');
@@ -700,7 +1148,7 @@
     if (b.type === 'hscroll') {
       var hitems = (b.images || []).map(function (im) {
         var src = (typeof im === 'string') ? im : im.src;
-        return '<img src="assets/' + pid + '/' + encodeURIComponent(src) + '" '
+        return '<img src="' + assetPath(pid, src) + '" '
              +   'alt="" loading="lazy" data-zoom="1">';
       }).join('');
       return '<div class="proj-block full proj-hscroll">'
@@ -708,6 +1156,14 @@
            +   '<button class="proj-hscroll-arrow prev" type="button" aria-label="Scroll left">\u2190</button>'
            +   '<button class="proj-hscroll-arrow next" type="button" aria-label="Scroll right">\u2192</button>'
            + '</div>';
+    }
+    /* posters: the static justified posters grid (js/posters-gallery.js) embedded
+       INSIDE a content page's block flow. Only the mount is emitted here — it is
+       filled by renderProjectStandard once the grid is in the DOM. Optional `pid`
+       names the asset folder the images live in (defaults to this project). */
+    if (b.type === 'posters') {
+      return '<div class="proj-block full posters-gallery" data-posters-pid="'
+           + String(b.pid || pid).replace(/"/g, '&quot;') + '"></div>';
     }
     /* default: image — data-full marks clickable content images for the lightbox.
        Optional `ratio` (e.g. '1/1') locks the cell to that aspect ratio and fits
@@ -727,12 +1183,12 @@
     if (b.ratio) {
       imgBlockSt.push('aspect-ratio:' + b.ratio);
       return '<div class="proj-block' + full + ' proj-img-ratio" style="' + imgBlockSt.join(';') + '">'
-           +   '<img src="assets/' + pid + '/' + b.src + '" alt="" loading="lazy" data-zoom="1"' + imgSt + '>'
+           +   '<img src="' + assetPath(pid, b.src) + '" alt="" loading="lazy" data-zoom="1"' + imgSt + '>'
            + '</div>';
     }
     var imgBlockStyle = imgBlockSt.length ? ' style="' + imgBlockSt.join(';') + '"' : '';
     return '<div class="proj-block' + full + '"' + imgBlockStyle + '>'
-         +   '<img src="assets/' + pid + '/' + b.src + '" alt="" loading="lazy" data-zoom="1"' + imgSt + '>'
+         +   '<img src="' + assetPath(pid, b.src) + '" alt="" loading="lazy" data-zoom="1"' + imgSt + '>'
          + '</div>';
   }
 
@@ -844,12 +1300,67 @@
     }
   }
 
+  /* stamp the block's editor key (data-bk, for the hover outline) and any
+     placement / text-layout override onto its root .proj-block */
+  function decorateBlock(html, b) {
+    if (!b || !b.__key) return html;
+    var cls = (b.__place ? ' place-' + b.__place : '') + (b.__mode === 'beside' ? ' mode-beside' : '') + (b.__per === 3 ? ' pc-3' : '');
+    var vars = '';
+    if (b.__gc) vars += 'grid-column:' + b.__gc + ';';
+    if (b.__geo) { cls += ' pc-sz-g'; vars += '--pc-gw:' + b.__geo.w + ';--pc-gm:' + b.__geo.m + ';'; }
+    else if (b.__sz) {
+      cls += ' pc-sz-' + b.__sz.kind;
+      vars += '--pc-w:' + b.__sz.w.toFixed(3) + ';';
+    }
+    if (b.__sa || b.__sb) {
+      cls += ' pc-space';
+      if (b.__sa) vars += '--pc-sa:' + b.__sa + 'px;';
+      if (b.__sb) vars += '--pc-sb:' + b.__sb + 'px;';
+    }
+    if (b.__newRow) html = '<div class="pc-break" aria-hidden="true"></div>' + html;
+    if (vars) {
+      /* merge into the root tag's existing style attr (a 2nd style attr would be ignored) */
+      var end = html.indexOf('>'), head = html.slice(0, end);
+      if (/ style="/.test(head)) html = head.replace(/ style="/, ' style="' + vars) + html.slice(end);
+      else html = html.replace('class="proj-block', 'style="' + vars + '" class="proj-block');
+    }
+    return html.replace('class="proj-block', 'data-bk="' + String(b.__key).replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '" class="proj-block' + cls);
+  }
+
+  /* re-render the project toolbar (year / tags / description edits) */
+  window.refreshProjectLeft = function () {
+    var r = parseHash();
+    if (r.view !== 'project') return;
+    var p = getProjectById(r.projectId);
+    if (!p) return;
+    setLeftProject(p);
+    if (window.fitLogo) window.fitLogo();
+  };
+
+  /* re-render the open project page in place (Page content edits). Keeps the
+     scroll position; skips playground / standalone-posters pages. */
+  window.rerenderProjectContent = function () {
+    var r = parseHash();
+    if (r.view !== 'project') return;
+    var p = getProjectById(r.projectId);
+    if (!p || (p.playgroundImages && p.playgroundImages.length) || (p.postersImages && p.postersImages.length)) return;
+    var se = document.scrollingElement || document.documentElement;
+    var pv = document.getElementById('project-view');
+    var y1 = se.scrollTop, y2 = pv ? pv.scrollTop : 0;
+    stopProjectEmbeds();
+    if (window.PostersGallery) window.PostersGallery.unmount();
+    renderProjectStandard(p);
+    se.scrollTop = y1; if (pv) pv.scrollTop = y2;
+  };
+
   function renderProjectStandard(p) {
     var body = document.getElementById('proj-body');
     var blocks = [];
 
     if (p.content && p.content.length) {
-      blocks = p.content.slice();
+      /* authored content + any Page content overrides (order / hidden /
+         placement / text) — identical to p.content when there are none */
+      blocks = window.resolveProjectContent ? window.resolveProjectContent(p) : p.content.slice();
     } else {
       /* legacy fallback — hero + image grid from older project data */
       if (p.video) blocks.push({ type: 'video', src: p.video });
@@ -860,17 +1371,32 @@
     }
 
     var inner = blocks.length
-      ? blocks.map(function (b) { return blockHTML(b, p.id); }).join('')
+      ? blocks.map(function (b) { return decorateBlock(blockHTML(b, p.id), b); }).join('')
       : '<div class="proj-block full proj-ph">' + p.title + ' — add content</div>';
 
     body.innerHTML =
         '<div class="proj-standard">'
-      +   '<div class="proj-grid">' + inner + '</div>'
+      +   '<div class="proj-grid' + (window.projStrictFlow && window.projStrictFlow(p) ? ' pc-strict' : '') + '">' + inner + '</div>'
       + '</div>';
     measureProjRows(body);
     initHscroll(body);
     initLocalVideos(body);
     initRichVideos(body);
+    initPostersBlock(body, blocks);
+    if (window.ProjSlideshow) window.ProjSlideshow.init(body);
+  }
+
+  /* fill an embedded posters mount (block type 'posters') once it is in the DOM.
+     One gallery per page — PostersGallery keeps a single mount. */
+  function initPostersBlock(container, blocks) {
+    var mount = container.querySelector('[data-posters-pid]');
+    if (!mount || !window.PostersGallery) return;
+    var blk = null;
+    for (var i = 0; i < blocks.length; i++) {
+      if (blocks[i] && blocks[i].type === 'posters') { blk = blocks[i]; break; }
+    }
+    if (!blk) return;
+    window.PostersGallery.build(mount, blk.images || [], mount.getAttribute('data-posters-pid'));
   }
 
   /* ── RICH VIDEO wiring ──
@@ -934,7 +1460,12 @@
       togglePlay();
     });
     /* keep the state class in sync if playback changes by other means */
-    video.addEventListener('pause', function () { if (!video.ended) stage.classList.add('is-paused'); });
+    video.addEventListener('pause', function () {
+      /* auto-pauses from js/media-power.js (off-screen / hidden tab) must NOT
+         surface the paused control state — only a real user pause does */
+      if (video.dataset.mpAuto === '1') return;
+      if (!video.ended) stage.classList.add('is-paused');
+    });
     video.addEventListener('play',  function () { stage.classList.remove('is-paused'); });
     /* reveal on hover/move, fade shortly after the pointer leaves */
     stage.addEventListener('mouseenter', function () { showCtrls(); });
@@ -1082,10 +1613,18 @@
         var dy = e.deltaY;
         if (!dy) return;
         var ms = maxScroll();
-        /* the gallery only scrolls horizontally when the PAGE is fully scrolled to
-           the top — otherwise let the wheel scroll the page vertically first */
+        /* the gallery takes over the wheel while it is ENGAGED: either the page is
+           at the very top (a gallery pinned at the top of the page) or the gallery
+           is vertically settled in the viewport — fully visible, or tall enough to
+           cover the viewport's middle. Mid-page galleries therefore scroll L/R and
+           only hand the wheel back to the page at an edge. */
         var pageTop = (window.pageYOffset || document.documentElement.scrollTop || 0) < 1;
-        var canH = ms > 0 && pageTop &&
+        var r  = g.getBoundingClientRect();
+        var vh = window.innerHeight || document.documentElement.clientHeight;
+        var engaged = pageTop
+          || (r.top >= -2 && r.bottom <= vh + 2)
+          || (r.top <= vh * 0.5 && r.bottom >= vh * 0.5);
+        var canH = ms > 0 && engaged &&
                    ((dy > 0 && track.scrollLeft < ms - EDGE) ||
                     (dy < 0 && track.scrollLeft > EDGE));
         if (canH) {
@@ -1093,7 +1632,7 @@
           if (!animating) target = track.scrollLeft;
           glideTo(target + dy * 0.55);
         }
-        /* else: at an edge, or page not at top — let the page scroll normally */
+        /* else: at an edge, or the gallery isn't settled yet — page scrolls */
       }, { passive: false });
       if (la) la.addEventListener('click', function () { glideTo((animating ? target : track.scrollLeft) - track.clientWidth * 0.7); });
       if (ra) ra.addEventListener('click', function () { glideTo((animating ? target : track.scrollLeft) + track.clientWidth * 0.7); });
@@ -1161,10 +1700,23 @@
     var h = (location.hash || '').replace(/^#\/?/, '');
     if (!h)              return { view: 'home' };
     if (h === 'about')   return { view: 'about' };
+    var fm = h.match(/^filter\/(.+)$/);
+    if (fm)              return { view: 'home', filter: decodeURIComponent(fm[1]) };
     var m = h.match(/^project\/(.+)$/);
     if (m)               return { view: 'project', projectId: m[1] };
     return { view: 'home' };
   }
+
+  /* validate a filter key against filterDefs; unknown / missing → 'all' */
+  function validFilter(key) {
+    if (key && filterDefs.some(function (f) { return f.key === key; })) return key;
+    return 'all';
+  }
+  function applyFilterState(key) {
+    activeFilters = {};
+    activeFilters[validFilter(key)] = true;
+  }
+  var lastAppliedFilter = 'all';
 
   /* ── PAGE-EXIT VIDEO TEARDOWN ──
      Hiding a view with display:none does NOT stop iframes inside it — audio
@@ -1210,6 +1762,8 @@
     /* stop playback in views we're leaving (see teardown note above) */
     if (r.view !== 'about')   stopAboutReel();
     if (r.view !== 'project') stopProjectEmbeds();
+    /* the home reel is owned by js/home-intro.js (same blank-on-exit rule) */
+    if (r.view !== 'home' && window.HomeIntro) window.HomeIntro.leave();
 
     /* always tear down playground gallery if leaving a playground project */
     if (r.view !== 'project' && window.Playground) {
@@ -1220,12 +1774,32 @@
       window.PostersGallery.unmount();
     }
 
+    /* ROUTE CLASSES on <html> — the single source of truth for route-scoped
+       CSS (the reel's full-page/invert modes, the bio-reveal hover) and for
+       per-route control values (the about page's own minimize glyph). Set here
+       rather than in each module so nothing can disagree about the route. */
+    var rc = document.documentElement.classList;
+    rc.toggle('route-home',    r.view === 'home');
+    rc.toggle('route-about',   r.view === 'about');
+    rc.toggle('route-project', r.view === 'project');
+    if (window.updateTbGlyphs) window.updateTbGlyphs();
+
     if (r.view === 'home') {
+      /* a filter can be encoded in the URL (#/filter/<key>) so a filtered view
+         is linkable. Apply it BEFORE building so the pills + thumbnails reflect
+         it; reset the list scroll only when the filter actually changed. */
+      var fkey = validFilter(r.filter);
+      var filterChanged = (fkey !== lastAppliedFilter);
+      lastAppliedFilter = fkey;
+      applyFilterState(fkey);
       setLeftHome();
       setView('home-view');
       /* build whichever thumbnail display is active. List PRESERVES scroll so
-         returning from a project lands the user where they were browsing. */
-      applyDisplayMode();
+         returning from a project lands the user where they were browsing — but
+         a filter change resets to the top of the newly filtered set. */
+      applyDisplayMode({ preserveScroll: !filterChanged });
+      if (window.HomeIntro) window.HomeIntro.enter();
+      if (window.AdaptiveInvert) window.AdaptiveInvert.refresh();
     }
     else if (r.view === 'about') {
       setLeftAbout();
@@ -1256,6 +1830,8 @@
     }
   }
 
+  window.aboutLinkHTML = aboutLinkHTML;
+  window.closeLinkHTML = closeLinkHTML;
   /* exposed navigation — just set the hash; hashchange triggers applyRoute */
   window.goHome = function ()   { setHash('#/'); };
   window.openAbout = function () { setHash('#/about'); };
@@ -1328,6 +1904,17 @@
   /* disable right-click / long-press context menu site-wide so images + videos
      can't be trivially saved (belt-and-braces with the CSS drag/callout guards) */
   document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+  /* close whatever expanded media is open (project lightboxes + the playground's
+     expanded clip) — used by the CLOSE CURSOR script when the toolbar background
+     is clicked in main-content Expand-over mode */
+  window.closeExpandedMedia = function () {
+    var on = function (id) { var e = document.getElementById(id); return !!(e && e.classList.contains('is-active')); };
+    if (on('img-lightbox')) closeLightbox();
+    if (on('video-lightbox')) closeVideoLightbox();
+    if (on('rv-lightbox')) closeRichEnlarge();
+    if (on('pg-overlay') && window.Playground && window.Playground.closeOverlay) window.Playground.closeOverlay();
+  };
 
   /* apply route from URL on first load (instant — no async) */
   initLightbox();

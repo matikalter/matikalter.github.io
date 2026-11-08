@@ -14,8 +14,9 @@
        against the image behind it).
    Complementary masks → each glyph portion paints exactly once, no double
    blend. Over the white gaps inside the region, difference(inverse, white)
-   reproduces the normal colour, so a single UNION rectangle of the overlapping
-   thumbnails is a perfect approximation (no need to mask each tile precisely).
+   reproduces the normal colour — but text spanning TWO dark tiles with a page
+   gap between them gets PER-TILE holes (not one union rect), so the gap stays
+   crisp base text instead of an invisible white-on-white difference chunk.
 
    Efficiency:
      • No permanent RAF. Work runs in short BURSTS pinged by wheel / hover /
@@ -80,21 +81,26 @@
     }
   }
 
-  /* union rectangle of DARK thumbnails intersecting the text's box (viewport
-     coords). Only tiles whose OWN project is flagged `dark` are included, so
-     the copy never covers a light tile (no ugly seam over white) — and this is
-     correct in gallery mode too, where the text may sit over a different tile
-     than the one hovered. */
+  /* ids of projects whose thumbnail is flagged `dark` */
   function darkIdSet() {
     var set = {};
     var list = window.projects || [];
     for (var i = 0; i < list.length; i++) if (list[i].dark) set[list[i].id] = true;
     return set;
   }
-  function overlapRect(er) {
+  /* PER-TILE dark-thumbnail intersections with the text's ink rect (viewport
+     coords) — an ARRAY of rects, one per dark tile the text crosses. A single
+     union rect is WRONG when a long title clips TWO dark tiles with a page gap
+     between them: the union hole would hand the gap to the inverted copy
+     (white-on-white → invisible chunk). Per-tile holes keep text between dark
+     tiles as crisp normal base text. Only tiles whose OWN project is flagged
+     `dark` are included, so the copy never covers a light tile — correct in
+     gallery mode too, where the text may sit over a different tile than the
+     one hovered. */
+  function overlapRects(er) {
     var dark = darkIdSet();
     var thumbs = document.querySelectorAll('#home-view .list-thumb, #home-view .gal-thumb');
-    var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, found = false;
+    var out = [];
     for (var i = 0; i < thumbs.length; i++) {
       var owner = thumbs[i].closest('[data-id]');
       if (!owner || !dark[owner.getAttribute('data-id')]) continue;   // only dark tiles
@@ -102,11 +108,9 @@
       var ix0 = Math.max(r.left, er.left), iy0 = Math.max(r.top, er.top);
       var ix1 = Math.min(r.right, er.right), iy1 = Math.min(r.bottom, er.bottom);
       if (ix1 <= ix0 || iy1 <= iy0) continue;
-      found = true;
-      if (ix0 < x0) x0 = ix0; if (iy0 < y0) y0 = iy0;
-      if (ix1 > x1) x1 = ix1; if (iy1 > y1) y1 = iy1;
+      out.push({ left: ix0, top: iy0, right: ix1, bottom: iy1 });
     }
-    return found ? { left: x0, top: y0, right: x1, bottom: y1 } : null;
+    return out.length ? out : null;
   }
 
   function clearTarget(t) {
@@ -137,16 +141,43 @@
     el.style.webkitMaskPosition = p; el.style.maskPosition = p;
     el.style.webkitMaskSize = s; el.style.maskSize = s;
     el.style.webkitMaskRepeat = r; el.style.maskRepeat = r;
+    el.style.webkitClipPath = ''; el.style.clipPath = '';   // mask mode clears clip mode
+  }
+  /* CLIP-PATH variant of setMask — used when the text's ink OVERFLOWS its box
+     (a title word wider than its tile). ANY mask hard-clips painted ink to the
+     element's border box in Chrome (mask-clip:no-clip parses but is not
+     honoured), which is what cut long words off — and only with invert on,
+     because that's when masks apply. clip-path shapes MAY extend beyond the
+     border box and reveal overflowing ink. Only used on pointer-events:none
+     targets (gal-info / mini) — clip-path clips hit-testing, which is why the
+     interactive filter pills keep masks (they never overflow their box). */
+  function setClip(el, rects) {
+    var d = '';
+    for (var i = 0; i < rects.length; i++) {
+      var rc = rects[i];
+      d += 'M' + rc.x.toFixed(2) + ' ' + rc.y.toFixed(2)
+         + 'H' + (rc.x + rc.w).toFixed(2)
+         + 'V' + (rc.y + rc.h).toFixed(2)
+         + 'H' + rc.x.toFixed(2) + 'Z';
+    }
+    var v = rects.length ? 'path("' + d + '")' : 'inset(100%)';   // empty = fully hidden
+    el.style.webkitClipPath = v; el.style.clipPath = v;
+    // clip mode clears mask mode
+    el.style.webkitMaskImage = ''; el.style.maskImage = '';
+    el.style.webkitMaskPosition = ''; el.style.maskPosition = '';
+    el.style.webkitMaskSize = ''; el.style.maskSize = '';
+    el.style.webkitMaskRepeat = ''; el.style.maskRepeat = '';
   }
   function clearMask(el) {
     el.style.webkitMaskImage = ''; el.style.maskImage = '';
     el.style.webkitMaskPosition = ''; el.style.maskPosition = '';
     el.style.webkitMaskSize = ''; el.style.maskSize = '';
     el.style.webkitMaskRepeat = ''; el.style.maskRepeat = '';
+    el.style.webkitClipPath = ''; el.style.clipPath = '';
   }
-  /* fully hide an element via a transparent mask (used when the overlap covers
-     the WHOLE element — bandLayers would return zero bands, which as an empty
-     mask means "no mask = fully visible", the opposite of what we want). */
+  /* fully hide an element via a transparent mask (used when the holes cover
+     the WHOLE element — complementRects would return zero bands, which as an
+     empty mask means "no mask = fully visible", the opposite of what we want). */
   function hideMask(el) {
     var g = 'linear-gradient(rgba(0,0,0,0),rgba(0,0,0,0))';
     el.style.webkitMaskImage = g; el.style.maskImage = g;
@@ -154,15 +185,47 @@
     el.style.webkitMaskSize = '100% 100%'; el.style.maskSize = '100% 100%';
     el.style.webkitMaskRepeat = 'no-repeat'; el.style.maskRepeat = 'no-repeat';
   }
-  /* four bands covering the WxH box EXCEPT the hole (L,T,R,B) — for the base
-     (shows everything but the overlap) */
-  function bandLayers(W, H, L, T, R, B) {
+  /* Generalised rect subtraction — rc minus hole → up to 4 bands. Coords are
+     box-relative {x0,y0,x1,y1} and MAY be negative or exceed the box (the
+     outer rect is the union of the element box and its text ink, so
+     overflowing glyphs are covered and never masked away). */
+  function subtractRect(rc, h) {
+    var hx0 = Math.max(rc.x0, h.x0), hy0 = Math.max(rc.y0, h.y0);
+    var hx1 = Math.min(rc.x1, h.x1), hy1 = Math.min(rc.y1, h.y1);
+    if (hx1 <= hx0 || hy1 <= hy0) return [rc];      // no intersection → unchanged
     var a = [];
-    if (T > 0)                 a.push({ x: 0, y: 0, w: W, h: T });
-    if (H - B > 0)             a.push({ x: 0, y: B, w: W, h: H - B });
-    if (B - T > 0 && L > 0)    a.push({ x: 0, y: T, w: L, h: B - T });
-    if (B - T > 0 && W - R > 0) a.push({ x: R, y: T, w: W - R, h: B - T });
+    if (hy0 > rc.y0) a.push({ x0: rc.x0, y0: rc.y0, x1: rc.x1, y1: hy0 });  // top
+    if (rc.y1 > hy1) a.push({ x0: rc.x0, y0: hy1, x1: rc.x1, y1: rc.y1 });  // bottom
+    if (hx0 > rc.x0) a.push({ x0: rc.x0, y0: hy0, x1: hx0, y1: hy1 });      // left
+    if (rc.x1 > hx1) a.push({ x0: hx1, y0: hy0, x1: rc.x1, y1: hy1 });      // right
     return a;
+  }
+  /* complement of N holes within an outer rect — iterative subtraction */
+  function complementRects(outer, holes) {
+    var list = [outer];
+    for (var i = 0; i < holes.length; i++) {
+      var next = [];
+      for (var j = 0; j < list.length; j++) next = next.concat(subtractRect(list[j], holes[i]));
+      list = next;
+    }
+    return list;
+  }
+  /* the element's TEXT INK rect (viewport coords), unioned with its box. A long
+     word wider than the element paints OUTSIDE the box; getBoundingClientRect on
+     the element misses that ink, but a Range over its contents captures it. */
+  function inkRectFor(el, er) {
+    try {
+      var rng = document.createRange();
+      rng.selectNodeContents(el);
+      var ir = rng.getBoundingClientRect();
+      if (ir && (ir.width || ir.height)) {
+        return {
+          left: Math.min(er.left, ir.left), top: Math.min(er.top, ir.top),
+          right: Math.max(er.right, ir.right), bottom: Math.max(er.bottom, ir.bottom)
+        };
+      }
+    } catch (e) {}
+    return { left: er.left, top: er.top, right: er.right, bottom: er.bottom };
   }
 
   function positionCopy(t, er) {
@@ -176,11 +239,16 @@
     c.style.height = er.height + 'px';
   }
 
-  function applyTarget(t, er, o) {
-    var key = o
-      ? Math.round(er.left) + ',' + Math.round(er.top) + ',' + Math.round(er.width) + ',' + Math.round(er.height)
-        + '|' + Math.round(o.left) + ',' + Math.round(o.top) + ',' + Math.round(o.right) + ',' + Math.round(o.bottom)
-      : 'none';
+  function applyTarget(t, er, ink, o) {
+    var key = 'none';
+    if (o) {
+      key = Math.round(er.left) + ',' + Math.round(er.top) + ',' + Math.round(er.width) + ',' + Math.round(er.height)
+        + '|' + Math.round(ink.left) + ',' + Math.round(ink.top) + ',' + Math.round(ink.right) + ',' + Math.round(ink.bottom);
+      for (var ki = 0; ki < o.length; ki++) {
+        var kh = o[ki];
+        key += '|' + Math.round(kh.left) + ',' + Math.round(kh.top) + ',' + Math.round(kh.right) + ',' + Math.round(kh.bottom);
+      }
+    }
     var changed = t.key !== key;
     t.key = key;
 
@@ -189,21 +257,52 @@
       return changed;
     }
 
-    positionCopy(t, er);            // copy tracks position every applicable frame
+    positionCopy(t, er);            // copy sits on the element BOX (not the ink
+                                    // rect) so its glyphs — including any that
+                                    // overflow the box — register 1:1 with the
+                                    // base; re-sizing the clone would re-lay-out
+                                    // its text and misregister the difference blend.
     syncContent(t);
     if (!changed) return false;
 
     var W = er.width, H = er.height;
-    var L = Math.max(0, o.left - er.left), T = Math.max(0, o.top - er.top);
-    var R = Math.min(W, o.right - er.left), B = Math.min(H, o.bottom - er.top);
+    /* OUTER paint rect (box ∪ ink) in box-relative coords — includes glyphs that
+       overflow the element box (e.g. a title word wider than the tile) so the
+       mask never cuts them off. */
+    var outer = {
+      x0: Math.min(0, ink.left - er.left),  y0: Math.min(0, ink.top - er.top),
+      x1: Math.max(W, ink.right - er.left), y1: Math.max(H, ink.bottom - er.top)
+    };
+    /* HOLES = ONE rect per dark-tile ∩ ink intersection, box-relative,
+       UNCLAMPED — the copy (inverted) paints each of them; text BETWEEN dark
+       tiles (over the white page) stays crisp base text instead of an
+       invisible white-on-white chunk of the union. */
+    var holes = [], copyLayers = [];
+    for (var i = 0; i < o.length; i++) {
+      var h = {
+        x0: o[i].left - er.left,  y0: o[i].top - er.top,
+        x1: o[i].right - er.left, y1: o[i].bottom - er.top
+      };
+      holes.push(h);
+      copyLayers.push({ x: h.x0, y: h.y0, w: h.x1 - h.x0, h: h.y1 - h.y0 });
+    }
 
-    // COPY: show ONLY the overlap box (single positive mask layer)
-    setMask(t.copy, [{ x: L, y: T, w: R - L, h: B - T }]);
-    // BASE: show everything EXCEPT the overlap box. Four bands normally; but if
-    // the overlap covers the WHOLE element (zero bands) hide the base entirely,
-    // otherwise the copy + base would both paint (double text).
-    var bands = bandLayers(W, H, L, T, R, B);
-    if (bands.length === 0) hideMask(t.el);
+    // Does the ink overflow the border box? Chrome bounds mask painting to the
+    // border box (no-clip is parsed but not honoured), so overflowing targets
+    // switch to clip-path (safe: these targets are pointer-events:none).
+    var overflows = outer.x0 < -0.5 || outer.y0 < -0.5 || outer.x1 > W + 0.5 || outer.y1 > H + 0.5;
+
+    // COPY: show ONLY the holes (one layer each; both modes union them)
+    if (overflows) setClip(t.copy, copyLayers);
+    else setMask(t.copy, copyLayers);
+    // BASE: show the whole paint rect EXCEPT the holes. If the holes cover it
+    // all (zero bands) hide the base entirely, else base + copy would
+    // double-paint (a dark fringe at the glyph edges).
+    var bands = complementRects(outer, holes)
+      .map(function (rc) { return { x: rc.x0, y: rc.y0, w: rc.x1 - rc.x0, h: rc.y1 - rc.y0 }; })
+      .filter(function (b) { return b.w > 0.5 && b.h > 0.5; });
+    if (overflows) setClip(t.el, bands);         // empty bands → inset(100%) hides
+    else if (bands.length === 0) hideMask(t.el);
     else setMask(t.el, bands);
     return true;
   }
@@ -219,10 +318,11 @@
       var er = t.el.getBoundingClientRect();
       if (er.width === 0 || er.height === 0) { clearTarget(t); continue; }
       ensureCopy(t);
-      jobs.push({ t: t, er: er, o: overlapRect(er) });
+      var ink = inkRectFor(t.el, er);
+      jobs.push({ t: t, er: er, ink: ink, o: overlapRects(ink) });
     }
     for (var j = 0; j < jobs.length; j++) {
-      if (applyTarget(jobs[j].t, jobs[j].er, jobs[j].o)) anyChange = true;
+      if (applyTarget(jobs[j].t, jobs[j].er, jobs[j].ink, jobs[j].o)) anyChange = true;
     }
     return anyChange;
   }
@@ -250,8 +350,45 @@
     if (!ex) targets.push({ kind: 'el', sel: sel, flag: flag, el: el, copy: null, key: '', srcHTML: null });
     else if (ex.el !== el) { ex.el = el; ex.copy = null; ex.key = ''; }
   }
+  /* gallery hover-info targets are transient: (re)bind to the live element(s)
+     for `sel`. In hover mode there is one open info; in always-show mode there
+     are many. Register one target per live element and drop stale ones (+ their
+     copies). Targets are matched by their .el so re-registration is idempotent. */
+  function reconcileGalInfo(sel, flag) {
+    /* :not(.ai-copy) — the difference-blend clones keep the original's class
+       and live in #home-view, so a bare query matches THEM too: each copy
+       would register as its own target, get the base's complement bands
+       written over its hole mask/clip (breaking the invert), and spawn
+       copies-of-copies on every refresh. */
+    var els = [].slice.call(document.querySelectorAll('#home-view ' + sel + ':not(.ai-copy)'));
+    targets = targets.filter(function (t) {
+      if (t.kind !== 'galinfo' || t.sel !== sel) return true;
+      if (t.el && t.el.isConnected && els.indexOf(t.el) !== -1) return true;  /* keep */
+      if (t.copy && t.copy.parentNode) t.copy.parentNode.removeChild(t.copy);
+      if (t.el) clearMask(t.el);
+      return false;
+    });
+    els.forEach(function (el) {
+      if (!targets.some(function (t) { return t.kind === 'galinfo' && t.sel === sel && t.el === el; })) {
+        targets.push({ kind: 'galinfo', sel: sel, flag: flag, el: el,
+                       copy: null, key: '', srcHTML: null });
+      }
+    });
+  }
+  /* drop ALL gallery-info targets + their copies (called on unhover) */
+  function dropGalInfo() {
+    targets = targets.filter(function (t) {
+      if (t.kind !== 'galinfo') return true;
+      if (t.copy && t.copy.parentNode) t.copy.parentNode.removeChild(t.copy);
+      if (t.el) clearMask(t.el);
+      return false;
+    });
+  }
   function refresh() {
     ensureElTarget('#mini-desc', 'MINI_INVERT_OVER');
+
+    /* (the gallery hover-info invert was removed — the gallery no longer
+       registers targets here; dropGalInfo() stays for teardown safety) */
 
     /* reconcile per-pill filter targets against the current pills */
     var pills = [].slice.call(document.querySelectorAll('.lp-filter-block .filter-pill'));
@@ -299,7 +436,10 @@
          SNAPS straight to the hover colour — otherwise the just-unmasked overlap
          text animates from its default (dark) colour and reads as a dark flash
          over the thumbnail before the hover colour arrives. */
-      pill.style.transition = 'none';
+      /* colours only: the 4th slot is the selection-glyph PUSH transform
+         (index.html .fp-item CSS), which must keep animating — unknown names
+         hold the index positions so durations / delays still line up */
+      pill.style.transitionProperty = 'x-snap, x-snap, x-snap, transform';
       var t = pillTargetFor(pill);
       if (t) clearTarget(t);          // instant: crisp base, hidden copy
     }
@@ -309,7 +449,7 @@
     if (!anyOn()) return;
     var pill = e.target.closest && e.target.closest('.lp-filter-block .filter-pill');
     if (!pill) return;
-    pill.style.transition = '';        // restore the normal hover transition
+    pill.style.transitionProperty = '';   // restore the normal hover transition
     ping(250);                         // re-apply invert once the pointer leaves
   }, { passive: true });
   // toolbar collapse/expand slide finishes → re-measure
@@ -317,5 +457,5 @@
     if (anyOn() && e.target && e.target.classList && e.target.classList.contains('left')) ping(200);
   });
 
-  window.AdaptiveInvert = { refresh: refresh, ping: ping, update: update };
+  window.AdaptiveInvert = { refresh: refresh, ping: ping, update: update, dropGalInfo: dropGalInfo };
 })();

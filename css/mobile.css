@@ -285,7 +285,9 @@
   margin-bottom: 8px;
 }
 .m-proj-year {
-  font-size: var(--body-size, 16px); color: var(--text-muted, #888);
+  font-size: var(--labels-size, 12px); font-weight: var(--labels-weight, 400);
+  line-height: var(--labels-leading, 1.6); letter-spacing: var(--labels-tracking, 0);
+  color: var(--text-muted, #888);
   margin-bottom: 14px;
 }
 .m-proj-tags {
@@ -312,8 +314,10 @@
 .m-proj-desc em { color: var(--text-muted, #888); font-style: italic; }
 /* play button inherits the desktop play-button styling (Regular vs Boxed +
    fill/outline/colors) via the shared --play-* pill vars */
+.m-btns { display: flex; flex-wrap: wrap; align-items: center; gap: var(--btn-gap, 12px); margin-top: 18px; }
+.m-ibtn:active { background-color: var(--ib-hc); }
 .m-play-btn {
-  display: inline-flex; align-items: center; gap: 7px; margin-top: 18px;
+  display: inline-flex; align-items: center; gap: 7px;
   font-family: var(--font);
   font-size: var(--body-size, 16px); font-weight: var(--body-weight, 400);
   line-height: var(--body-leading, 1.6); letter-spacing: var(--body-tracking, 0);
@@ -428,15 +432,17 @@
 body.m-lightbox-open { overflow: hidden; }
 .m-block-text .m-bt-title {
   font-family: var(--font); font-size: var(--h5-size, 18px);
-  font-weight: 500; line-height: 1.3; color: var(--text, #111);
+  font-weight: 500; line-height: 1.3; color: var(--proj-title-color, var(--text, #111));
   margin-bottom: 6px;
 }
 .m-block-text .m-bt-body {
   font-family: var(--font); font-size: var(--body-size, 16px);
-  line-height: var(--body-leading, 1.6); color: var(--text-muted, #888);
+  line-height: var(--body-leading, 1.6); color: var(--proj-body-color, var(--text-muted, #888));
 }
 .m-block-text a { color: var(--highlight, #8089ef); text-decoration: none; }
 .m-divider { height: 1px; background: var(--border, #111); opacity: 0.35; margin: 8px 0; }
+html.proj-dividers-off .m-proj-body .m-divider { visibility: hidden; }
+html.proj-title-rule .m-block-text .m-bt-title:not(:last-child) { padding-bottom: 6px; border-bottom: 1px solid var(--proj-title-rule-c, var(--border, #111)); }
 .m-hscroll {
   display: flex; gap: 12px; overflow-x: auto; -webkit-overflow-scrolling: touch;
   scrollbar-width: none; margin: 0 calc(-1 * var(--m-pad-x)); padding: 0 var(--m-pad-x);
@@ -539,6 +545,9 @@ body.m-lightbox-open { overflow: hidden; }
   border: 1px solid rgba(0,0,0,0.2); cursor: pointer; padding: 0;
 }
 .m-tw-sw.on { outline: 2px solid var(--highlight, #8089ef); outline-offset: 2px; }
+.m-tw-color { display: flex; gap: 8px; align-items: center; }
+.m-tw-color select { flex: 1; min-width: 0; height: 30px; font: 12px var(--font); color: var(--text, #111); background: var(--bg, #fff); border: 1px solid var(--border, #111); border-radius: 0; padding: 0 6px; }
+.m-tw-color input[type=color] { width: 44px; height: 30px; padding: 0; border: 1px solid var(--border, #111); background: none; cursor: pointer; }
 
 /* floating tweaks toggle FAB (only shown in-app; harness has its own toggle) */
 .m-tweaks-fab {
