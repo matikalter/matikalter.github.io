@@ -707,10 +707,11 @@ carry the same square/conform choice, each defaulting to how it already looked:
     it), so growing the glyph also grew the box. The stored tbToggleSize was
     migrated 44 → 18 when they split, preserving the old rendering.
 
-The optional HERO-IMAGE gif (assets/playground/
-Jumpdude-b.gif) sits BENEATH the other blocks (z-index:0; logo/links/bio/
-divider are z-index:1) so they always render above it. The gif is a LINK to
-the Playground (#/project/playground) with a hover scale-up (Tweak gifHoverScale
+The optional HERO IMAGE (default the Playground shapes loop
+assets/playground/LTX_Shapes_Single_1080.mp4; any project file via Hero Image →
+File, see FILE below) sits BENEATH the other blocks (z-index:0; logo/links/bio/
+divider are z-index:1) so they always render above it. It is a LINK to the
+project whose folder holds the file (Playground for the default) with a hover scale-up (Tweak gifHoverScale
 → --gif-hover-scale) whose hoverable/clickable area is limited to a centered
 inner 50%×50% hotspot (.lp-gif-hot; the <a> itself is pointer-events:none).
 The gif has independent IDLE and HOVER visual states (Tweaks → Toolbar →
@@ -734,7 +735,15 @@ independent idle + hover states
 (no cycling). gifHTML() (portfolio.js) builds <div class="lp-gif"><a>
 <div class="lp-gif-stack"> with TWO identical stacked <video class="lp-gif-media
 ... lp-gif-big"> copies, so all Hero Image controls (size via --gif-size,
-blur/hue/mask/opacity/sat/hover via the ".lp-gif a" rules) apply. SEAMLESS LOOP
+blur/hue/mask/opacity/sat/hover via the ".lp-gif a" rules) apply.
+FILE (Toolbar → Hero Image → File, HeroFileSelect in tweaks-app.jsx): t.gifSrc
+= path relative to assets/ ('' = default playground/LTX_Shapes_Single_1080.mp4)
+→ window.HERO_SRC (applyTweaks), swapped in place via window.refreshHeroImage().
+Video → the two-copy loop; image/GIF → ONE <img class="lp-gif-media is-current">
+(HeroLoop stays null, Freeze when idle n/a). .lp-gif-big (115%) only on the
+default file. fitHeroShape() sets the stack's aspect-ratio from the file's own
+dimensions (square default stays square). The <a> links to the project whose
+folder holds the file (falls back to Playground if hidden/missing). SEAMLESS LOOP
 (initHeroLoop(), called after setLeftHome/setLeftAbout render): native <video
 loop> stalls ~1 frame at the wrap while it re-decodes the t=0 keyframe (a
 GENERAL browser behaviour, not clip-specific). The clip's last frame is authored
@@ -1491,6 +1500,11 @@ survive as no-ops). Tweaks: aboutHeroShow, aboutHeroSize (% of its column →
 value). When it is the LAST block in its column it also gets margin-top:auto
 (pinned to the column bottom); mid-stack it sits in the flow, since auto there
 would eat the gap.
+FILE (About page → Hero image → File; the shared HeroFileSelect with
+k="aboutHeroSrc"): path relative to assets/ ('' = playground/Jumpdude-b.gif).
+applyTweaks compares it to #about-hero-img's data-src and sets src; a video
+swaps the <img> for a muted autoplay-loop <video> with the same id + class (and
+back for an image), so Show / Size / Align keep working unchanged.
 
 LAYOUT (About page → Layout): all THREE blocks — bio (#about-bio-text),
 accolades (#about-meta) and hero (#about-hero) — can live in EITHER column in
@@ -1811,7 +1825,8 @@ titles smaller). Notable groupings:
   route), so fillFilterLists renders the PREVIOUS selection (window.__fselKey)
   as .fs-on, forces a style read, then flips to the new one — the logo-glyph
   trick, so both the exit and entry animate. syncFilterSelGlyph() refreshes the
-  character + measures --fsel-shift (glyph width + gap); called per render and
+  character + measures --fsel-shift (glyph width + gap; per .fp-item when
+  Source = Filter emoji, see TAG / FILTER EMOJI); called per render and
   from applyTweaks. PUSH (html.fsel-push): glyph at the pill's own edge, pill
   nudged by --fsel-shift a beat after the glyph sets off — in a COLUMN via
   transform (left side → right, right side → left), in a ROW via padding on the
@@ -1823,6 +1838,36 @@ titles smaller). Notable groupings:
   offset boxes (transform-free) so a push never makes the toolbar box jitter.
   adaptive-invert.js's hover snap now overrides only transition-PROPERTY
   ('x-snap ×3, transform') so the push transform keeps animating while hovered.
+- Filter buttons → TRANSITION (Nov 16; keys filterFx off|fade|rise|blur|
+  shuffle [default rise], filterFxDur ms [600], filterFxStagger ms [40],
+  filterLand first|keep → window.FILTER_FX / _DUR / _STAGGER / FILTER_LAND).
+  portfolio.js window.FilterFX.run(rebuild) wraps the display rebuild that a
+  filter change triggers (applyRoute → doBuild = applyDisplayMode(buildOpts) +
+  AdaptiveInvert.refresh), only when the home list was ALREADY on screen
+  (wasHome) — first load / coming back from a project stay instant. Any
+  applyRoute first calls FilterFX.cancel() so a pending delayed rebuild never
+  runs on another page.
+  fade / rise / blur: on-screen .list-item / .gal-item + #lp-title-stack +
+  #mini-info animate OUT (35% of Duration, fill forwards), then rebuild, then
+  the new on-screen items animate IN (65%, fill backwards) with Stagger per
+  item — list ranked by distance from the window's middle (centred slot
+  first), gallery left → right; chrome fades back in. Rise = translate
+  0 22px → 0; Blur = filter blur 14px → 0.
+  shuffle (FLIP): rebuild AT ONCE; each new visible item is matched to the
+  nearest old rect with the same data-id → translate from the old offset to 0;
+  unmatched new items grow in (scale .86 → 1, delayed 30%); old items with no
+  match are MOVED (the real nodes, so videos / canvases keep their last frame)
+  into a .filter-fx-ghosts layer (absolute, in #list-column / #gallery-stage)
+  at their old spots and fade + shrink, then the layer is removed.
+  Only OUTER wrappers + individual translate / scale / opacity / filter are
+  animated (Web Animations), never the inner .list-thumb / -media (their CSS
+  transforms, inactive blur / dim, hover scale stay untouched). Skipped when
+  Off, prefers-reduced-motion, the reel still covers the list
+  (HomeIntro.progress() < 0.98), or no Element.animate.
+  LAND ON (list display): 'first' = old behaviour (first project of the new
+  set); 'keep' passes focusId = the previously centred project
+  (ListGallery.activeId(), new) to ListGallery.build, which opens on it when
+  it's in the new set (scrollY = snapsMod[k], no glide), else on the first.
 - Filter buttons, TOOLBAR set on the HOME REEL: it rides up WITH the project
   section (transform translate3d(0, var(--home-lift)) under
   html.filter-tb.route-home.intro-live .site:not(.tb-collapsed)) and is
@@ -1966,7 +2011,8 @@ block.
 ## Safe-to-hand-edit (download / re-upload)
 Text inside the `projects` array (title, year, desc, tags, mini, thumb,
 video, content blocks, postersImages [src/title/body], id), the bio strings (BIO_SHORT, BIO_SHORT_ALT,
-BIO_LONG), LOGO text, filterDefs labels, tagDefs labels, about-page
+BIO_LONG), LOGO text, filterDefs labels, tagDefs labels (once a tagList is
+saved it overrides these; keep emojis in each entry's `emoji`, not the label), about-page
 text, a project's `play` URL. thumbRatio is optional (auto-measured).
 Edit the TWEAKS JSON carefully (valid JSON only). NOTE: newly-added tweak
 keys must be written into the TWEAKS JSON block to persist to disk/GitHub — the panel's on-disk save updates EXISTING keys; a key absent from the block lives only in the localStorage mirror (shows in Claude Design, not on GitHub). The Posters order/descriptions were baked into the block for this reason. Don't touch the &lt;style&gt; CSS, script tags, or view structure.
@@ -2114,6 +2160,16 @@ info, gallery hover, filters and mobile all read the overrides with no other
 code changes. On change it calls window.refreshProjectLeft() (portfolio.js:
 setLeftProject + fitLogo). Info-only entries do NOT flip the page to strict flow (projStrictFlow: explicit
 L.flow wins, else strict only when order / blocks edits exist).
+THUMBNAIL (Page content → Thumbnail, right under the Project picker, above
+Toolbar; ProjectThumbEditor in tweaks-app.jsx): projLayout[pid].info.thumb =
+path relative to assets/ ("bloom/Banner_054.jpg"; unset = authored p.thumb).
+Options come from bioVideoOptions() (this project's files first) with a small
+preview. applyProjInfo swaps p.thumb (original on p.__orig.thumb) and DROPS
+p.thumbRatio while overridden (the hint only fits the authored file; list /
+gallery measure the new one). A thumb change sets a flag read by
+window.takeProjThumbChanged(); applyTweaks then rebuilds the home display
+(applyDisplayMode, or MobileApp.applyRoute on phones) when on the home route —
+project/about routes rebuild on return anyway.
 
 SIZE (Page content → Size, media + rows only): o.size (40–200 %, 100 =
 default, stored only when ≠ 100) → b.__size. In STRICT flow
@@ -2152,6 +2208,37 @@ Description), seeded from the Text Body values. Falls back to --body-* if unset.
   (fill/outline only when boxed; palette refs resolved). Every tag render
   carries data-tag. Keys are fixed at creation (new = tag, tag-2…), so renaming
   keeps projects linked. The project-page tag picker reads window.tagDefs live.
+- "All" sits pinned first in the Tag list editor but is NOT in tagList (can't
+  be assigned to projects / moved / removed): Text → t.allLabel, read by
+  applyFilterList as the All button label (empty → authored "All"); the
+  Buttons picker's labelOf shows it too. No colour controls — filter buttons
+  take colours from Filter buttons, per-tag colours only style tag pills.
+
+TAG / FILTER EMOJI: tagList entries carry `emoji` (Tag list → Emoji; All →
+t.allEmoji). Labels stay plain (saved labels with a trailing emoji were split
+into label + emoji once). window.withEmoji(label, emoji, on, side) joins them
+with one space. applyTagList: tagDefs = {key, label, emoji, display} where
+display follows Tags → Emojis (tagEmojiOn, default on) / Emoji side
+(tagEmojiSide, default right); every pill renderer (portfolio labelFor,
+gallery-display labelForTag, mobile tagLabel) shows `display`; a display change
+calls refreshProjectLeft. applyFilterList: filterDefs = {key, name, emoji,
+label} where label follows Filter buttons → Emojis (filterEmojiOn /
+filterEmojiSide), independent of the tag toggles. Selection glyph → Source
+(filterSelGlyphMode 'glyph' | 'emoji' → window.FSEL_MODE): 'emoji' shows each
+filter's own emoji (fselGlyphFor; no emoji → the glyph) and syncFilterSelGlyph
+sets a per-item --fsel-shift from each glyph's measured width.
+
+HOME FILTER MEMORY (portfolio.js): applyFilterState records homeFilter;
+window.goHome() → homeHash() = '#/filter/<homeFilter>' (or '#/' for All), so
+the logo (project page → home, or clicked on home) and about → home keep the
+selected filter. Only choosing All (or deselecting with All hidden) resets.
+Mobile already keeps it (mobileFilter var survives navigation).
+
+GLYPH SELECT (tweaks-app.jsx GlyphSelect — logoGlyph, filterSelGlyph,
+projGlyph): preset dropdown + Custom…; picking Custom sets t[k + 'Custom'] =
+true and the text field stays open even when the typed glyph matches a preset;
+picking a preset clears the flag. A saved value not in the presets also opens
+Custom.
 
 LINK UNDERLINE: every text link's hover underline (project desc, text-box body,
 about bio, toolbar bio links incl. their .bw spans) uses --link-ul-w /

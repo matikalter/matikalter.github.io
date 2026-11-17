@@ -309,7 +309,7 @@
   }
   function labelForTag(key) {
     var defs = (typeof tagDefs !== 'undefined' && tagDefs) ? tagDefs : (window.tagDefs || []);
-    for (var i = 0; i < defs.length; i++) if (defs[i].key === key) return defs[i].label;
+    for (var i = 0; i < defs.length; i++) if (defs[i].key === key) return defs[i].display || defs[i].label;
     return key;
   }
   function infoInnerHTML(p) {

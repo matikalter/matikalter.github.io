@@ -67,7 +67,7 @@
       .map(function (k) { return '<span data-tag="' + esc(k) + '">' + esc(tagLabel(k)) + '</span>'; }).join('');
   }
   function tagLabel(key) {
-    for (var i = 0; i < tagDefs.length; i++) if (tagDefs[i].key === key) return tagDefs[i].label;
+    for (var i = 0; i < tagDefs.length; i++) if (tagDefs[i].key === key) return tagDefs[i].display || tagDefs[i].label;
     return key;
   }
   function visibleProjects() {

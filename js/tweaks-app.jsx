@@ -136,7 +136,7 @@
     if (order.indexOf('all') === -1) order = ['all'].concat(order);
     const shown = order.filter((k) => k !== 'all' || showAll);
     const hidden = (showAll ? [] : ['all']).concat(tags.map((d) => d.key).filter((k) => order.indexOf(k) === -1));
-    const labelOf = (k) => (k === 'all' ? 'All' : tagLabel[k]);
+    const labelOf = (k) => (k === 'all' ? (t.allLabel || 'All') : tagLabel[k]);
     const move = (k, dir) => {
       const i = shown.indexOf(k), j = i + dir;
       if (i < 0 || j < 0 || j >= shown.length) return;
@@ -1081,6 +1081,64 @@
       default: return b.type || 'Block';
     }
   }
+  /* Toolbar → Hero Image → File: t.gifSrc = path relative to assets/
+     ('' = the default Playground shapes loop). Any image, GIF or video in the
+     projects data (bioVideoOptions). The hero links to that file's project. */
+  /* also About → Hero image → File (k="aboutHeroSrc", def = the Jumpdude gif) */
+  function HeroFileSelect({ t, setTweak, k = 'gifSrc', def = 'playground/LTX_Shapes_Single_1080.mp4' }) {
+    const DEF = def;
+    const all = React.useMemo(bioVideoOptions, []);
+    const toRel = (v) => String(v || '').replace(/^assets\//, '').split('/').map(decodeURIComponent).join('/');
+    const toOpt = (rel) => 'assets/' + String(rel).split('/').map(encodeURIComponent).join('/');
+    const val = t[k];
+    const cur = val && val !== DEF ? toOpt(val) : '';
+    const opts = [{ value: '', label: 'Default — ' + DEF.split('/').pop() }, ...all.filter((o) => o.value !== toOpt(DEF))];
+    if (cur && !opts.some((o) => o.value === cur)) opts.push({ value: cur, label: val });
+    return (
+      <TweakSelect label="File" value={cur} options={opts}
+                   onChange={(v) => { const r = v ? toRel(v) : ''; setTweak(k, r && r !== DEF ? r : ''); }} />
+    );
+  }
+  /* Page content → Thumbnail: the file the home list / gallery / mobile feed
+     show for this project. Stored as projLayout[pid].info.thumb, a path
+     relative to assets/ ("pid/file.ext"); applyProjInfo (index.html) swaps
+     p.thumb and the displays measure its shape. Any image, GIF or video in the
+     projects data; this project's own files are listed first. */
+  function ProjectThumbEditor({ p, L, save, note }) {
+    const all = React.useMemo(bioVideoOptions, []);
+    const orig = (p.__orig && 'thumb' in p.__orig) ? p.__orig.thumb : p.thumb;
+    const info = L.info || {};
+    const toRel = (v) => String(v || '').replace(/^assets\//, '').split('/').map(decodeURIComponent).join('/');
+    const toOpt = (rel) => 'assets/' + String(rel).split('/').map(encodeURIComponent).join('/');
+    const authoredRel = orig ? (String(orig).indexOf('/') !== -1 ? orig : p.id + '/' + orig) : '';
+    const cur = info.thumb ? toOpt(info.thumb) : '';
+    const own = all.filter((o) => o.value.indexOf('assets/' + encodeURIComponent(p.id) + '/') === 0);
+    const rest = all.filter((o) => own.indexOf(o) < 0);
+    const opts = [{ value: '', label: 'Default — ' + (authoredRel ? authoredRel.split('/').pop() : 'none') },
+      ...own.map((o) => ({ value: o.value, label: o.label.replace(/^.*? — /, '') })), ...rest];
+    if (cur && !opts.some((o) => o.value === cur)) opts.push({ value: cur, label: info.thumb });
+    const set = (v) => {
+      const rel = v ? toRel(v) : null;
+      const n = { ...info, thumb: rel && rel !== authoredRel ? rel : null };
+      Object.keys(n).forEach((k) => { if (n[k] == null) delete n[k]; });
+      const nl = { ...L };
+      if (Object.keys(n).length) nl.info = n; else delete nl.info;
+      save(nl);
+    };
+    const shownRel = info.thumb || authoredRel;
+    const src = shownRel ? toOpt(shownRel) : '';
+    const isVid = /\.(mp4|webm|mov|m4v)(\?|$)/i.test(src);
+    const pv = { display: 'block', maxWidth: '100%', maxHeight: 90, borderRadius: 4, background: 'rgba(41,38,27,.06)' };
+    return (
+      <>
+        <TweakSelect label="Thumbnail" value={cur} options={opts} onChange={set} />
+        {src ? (isVid
+          ? <video key={src} src={src} muted loop autoPlay playsInline preload="metadata" style={pv} />
+          : <img key={src} src={src} alt="" style={pv} />) : null}
+        <div style={note}>Shown in the home list, gallery and mobile feed; its shape is measured automatically.</div>
+      </>
+    );
+  }
   /* Page content → Toolbar: the project's year, tags and description (the
      left-panel info on its project page; tags + description also feed the home
      list / gallery). Stored in projLayout[pid].info; originals on p.__orig. */
@@ -1281,6 +1339,7 @@
                      options={projs.map((x) => ({ value: x.id, label: (x.title || x.id) + (layout[x.id] ? '  •' : '') }))}
                      onChange={(v) => setPid(v)} />
         <div style={note}>Follows the project page you open. Hover a block below to outline it on the page. • = has edits.</div>
+        {p ? <ProjectThumbEditor p={p} L={L} save={save} note={note} /> : null}
         {p ? (
           <ProjectInfoEditor p={p} L={L} save={save} btn={btn} note={note}>
             <ProjectButtonsEditor p={p} L={L} save={save} btn={btn} note={note}
@@ -1537,6 +1596,27 @@
      The vocabulary the project-page tag pickers choose from. Editing a label
      renames the tag everywhere (keys never change); per-tag colours override
      the global tag colours (fill / outline only in the boxed style). */
+  /* GLYPH SELECT — preset dropdown + "Custom…". Once Custom is picked the text
+     field STAYS open (flag t[k + 'Custom']) even if the typed glyph matches a
+     preset; picking a preset from the list clears the flag. A saved value not
+     in the list also opens Custom (older settings). `empty` = what an emptied
+     field stores (' ' keeps the logo / filter glyph slot, '' = no glyph). */
+  function GlyphSelect({ t, setTweak, k, value, presets, empty = '' }) {
+    const flag = k + 'Custom';
+    const custom = t[flag] === true || !presets.some((p) => p.value === value);
+    return (
+      <>
+        <TweakSelect label="Glyph" value={custom ? '__custom' : value}
+                     options={[...presets, { value: '__custom', label: 'Custom…' }]}
+                     onChange={(v) => setTweak(v === '__custom' ? { [flag]: true } : { [k]: v, [flag]: false })} />
+        {custom ? (
+          <TweakText label="Custom glyph" value={String(value || '').trim()} placeholder="Type any character"
+                     onChange={(v) => setTweak({ [k]: v || empty, [flag]: true })} />
+        ) : null}
+      </>
+    );
+  }
+
   function TagListEditor({ t, setTweak }) {
     const list = Array.isArray(t.tagList) ? t.tagList
       : (window.__tagDefsAuthored || []).map((d) => ({ key: d.key, label: d.label }));
@@ -1572,9 +1652,19 @@
     return (
       <TweakSection label={'Tag list (' + list.length + ')'} sub collapsible defaultOpen={false}>
         <div style={note}>The tags the project pages pick from. Renaming a tag updates every project using it.</div>
+        {/* "All" — pinned first; not a project tag (can't be assigned, moved or
+            removed), only the All filter button's text (t.allLabel). */}
+        <TweakSection label={(t.allLabel || 'All') + (t.allEmoji ? ' ' + t.allEmoji : '') + '  · filter'} sub collapsible defaultOpen={false}>
+          <TweakText label="Text" value={t.allLabel != null ? t.allLabel : 'All'} placeholder="All"
+                     onChange={(v) => setTweak('allLabel', v)} />
+          <TweakText label="Emoji" value={t.allEmoji || ''} placeholder="Paste an emoji"
+                     onChange={(v) => setTweak('allEmoji', v.trim())} />
+          <div style={note}>The All filter button — shows every project. Fixed in place; not assignable to projects. Its colours come from Filter buttons.</div>
+        </TweakSection>
         {list.map((d, i) => (
-          <TweakSection key={d.key} label={d.label || d.key} sub collapsible defaultOpen={false}>
+          <TweakSection key={d.key} label={(d.label || d.key) + (d.emoji ? ' ' + d.emoji : '')} sub collapsible defaultOpen={false}>
             <TweakText label="Text" value={d.label || ''} onChange={(v) => upd(i, { label: v })} />
+            <TweakText label="Emoji" value={d.emoji || ''} placeholder="Paste an emoji" onChange={(v) => upd(i, { emoji: v.trim() })} />
             {colorOpt('Text color', d, i, 'text', t.tagText || '#111111')}
             {boxed ? (
               <>
@@ -1751,13 +1841,8 @@
               </div>
               {t.logoGlyphOn !== false ? (
                 <>
-                  <TweakSelect label="Glyph" value={["←","↖","‹","«","→","↳","•","—","+","×","*","✳","■","●"].indexOf(t.logoGlyph || '←') >= 0 ? (t.logoGlyph || '←') : '__custom'}
-                               options={[...["←","↖","‹","«","→","↳","•","—","+","×","*","✳","■","●"].map((g) => ({ value: g, label: g })), { value: '__custom', label: 'Custom…' }]}
-                               onChange={(v) => setTweak('logoGlyph', v === '__custom' ? ' ' : v)} />
-                  {["←","↖","‹","«","→","↳","•","—","+","×","*","✳","■","●"].indexOf(t.logoGlyph || '←') < 0 ? (
-                    <TweakText label="Custom glyph" value={(t.logoGlyph || '').trim()} placeholder="Type any character"
-                               onChange={(v) => setTweak('logoGlyph', v || ' ')} />
-                  ) : null}
+                  <GlyphSelect t={t} setTweak={setTweak} k="logoGlyph" value={t.logoGlyph || '←'} empty=" "
+                               presets={["←","↖","‹","«","→","↳","•","—","+","×","*","✳","■","●"].map((g) => ({ value: g, label: g }))} />
                   <TweakSlider label="Size" value={t.logoGlyphSize != null ? t.logoGlyphSize : 100}
                                min={20} max={200} step={1} unit="%"
                                onChange={(v) => setTweak('logoGlyphSize', v)} />
@@ -1861,6 +1946,7 @@
           <TweakSection label="Hero Image" sub collapsible defaultOpen={false}>
             <TweakToggle label="Show image" value={t.gifShow !== false}
                          onChange={(v) => setTweak('gifShow', v)} />
+            <HeroFileSelect t={t} setTweak={setTweak} />
             <TweakSlider label="Image Y" value={t.gifY != null ? t.gifY : 32}
                          min={0} max={600} step={1} unit="px"
                          onChange={(v) => setTweak('gifY', v)} />
@@ -2642,6 +2728,18 @@
           <TweakSection label="Buttons" sub collapsible defaultOpen={false}>
             <FilterButtonsPicker t={t} setTweak={setTweak} />
           </TweakSection>
+          {/* FILTER EMOJI: each button shows its tag's emoji (Tags → Tag list →
+              Emoji; All → its own). Independent of the Tags toggles. */}
+          <TweakSection label="Emojis" sub collapsible defaultOpen={false}>
+            <TweakToggle label="Show emojis" value={t.filterEmojiOn !== false}
+                         onChange={(v) => setTweak('filterEmojiOn', v)} />
+            {t.filterEmojiOn !== false ? (
+              <TweakRadio label="Emoji side" value={t.filterEmojiSide === 'left' ? 'left' : 'right'}
+                          options={['left', 'right']}
+                          onChange={(v) => setTweak('filterEmojiSide', v)} />
+            ) : null}
+            <div style={{ fontSize: 10.5, lineHeight: 1.35, color: 'rgba(41,38,27,.5)', marginTop: -4 }}>Each button uses its tag's emoji, set in Tags → Tag list.</div>
+          </TweakSection>
           <TweakSection label="Position" sub collapsible defaultOpen={false}>
             <TweakRadio  label="Placement" value={t.filterPlace === 'toolbar' ? 'toolbar' : 'main'}
                          options={[{ value: 'main', label: 'Main content' }, { value: 'toolbar', label: 'Toolbar' }]}
@@ -2697,6 +2795,37 @@
                          onChange={(v) => setTweak('filterRadius', v)} />
             <StateStack fam="filter" t={t} setTweak={setTweak} />
           </TweakSection>
+          <TweakSection label="Transition" sub collapsible defaultOpen={false}>
+            <TweakSelect label="Style" value={t.filterFx || 'rise'}
+                         options={[{ value: 'off', label: 'Off (instant)' }, { value: 'fade', label: 'Crossfade' },
+                                   { value: 'rise', label: 'Rise' }, { value: 'blur', label: 'Blur' },
+                                   { value: 'shuffle', label: 'Shuffle' }]}
+                         onChange={(v) => setTweak('filterFx', v)} />
+            <div style={{ fontSize: 10.5, lineHeight: 1.35, color: 'rgba(41,38,27,.5)', marginTop: -4 }}>
+              {({
+                off: 'The thumbnails swap instantly, as before.',
+                fade: 'The current thumbnails fade out, the new ones fade in.',
+                rise: 'The new thumbnails fade in and drift up, one after another.',
+                blur: 'The current set blurs away, the new one sharpens in, one after another.',
+                shuffle: 'Projects that stay glide to their new places; ones that leave shrink away; new ones grow in.'
+              })[t.filterFx || 'rise']}
+            </div>
+            {(t.filterFx || 'rise') !== 'off' ? (
+              <>
+                <TweakSlider label="Duration" value={t.filterFxDur != null ? t.filterFxDur : 600}
+                             min={200} max={1600} step={20} unit="ms"
+                             onChange={(v) => setTweak('filterFxDur', v)} />
+                <TweakSlider label="Stagger" value={t.filterFxStagger != null ? t.filterFxStagger : 40}
+                             min={0} max={150} step={5} unit="ms"
+                             onChange={(v) => setTweak('filterFxStagger', v)} />
+                <div style={{ fontSize: 10.5, lineHeight: 1.35, color: 'rgba(41,38,27,.5)', marginTop: -4 }}>Delay between one thumbnail and the next (list: outward from the centre; gallery: left to right).</div>
+              </>
+            ) : null}
+            <TweakRadio label="Land on" value={t.filterLand === 'keep' ? 'keep' : 'first'}
+                        options={[{ value: 'first', label: 'First project' }, { value: 'keep', label: 'Keep current' }]}
+                        onChange={(v) => setTweak('filterLand', v)} />
+            <div style={{ fontSize: 10.5, lineHeight: 1.35, color: 'rgba(41,38,27,.5)', marginTop: -4 }}>List display: after a filter change, centre the first project of the new set, or stay on the project you were on if it's in that filter.</div>
+          </TweakSection>
           <TweakSection label="Selection glyph" sub collapsible defaultOpen={false}>
             <TweakToggle label="Selection glyph" value={t.filterSelGlyphOn === true}
                          onChange={(v) => setTweak('filterSelGlyphOn', v)} />
@@ -2708,13 +2837,14 @@
               const cur = t.filterSelGlyph || '•';
               return (
                 <>
-                  <TweakSelect label="Glyph" value={G.indexOf(cur) >= 0 ? cur : '__custom'}
-                               options={[...G.map((g) => ({ value: g, label: g })), { value: '__custom', label: 'Custom…' }]}
-                               onChange={(v) => setTweak('filterSelGlyph', v === '__custom' ? ' ' : v)} />
-                  {G.indexOf(cur) < 0 ? (
-                    <TweakText label="Custom glyph" value={(t.filterSelGlyph || '').trim()} placeholder="Type any character"
-                               onChange={(v) => setTweak('filterSelGlyph', v || ' ')} />
+                  <TweakRadio label="Source" value={t.filterSelGlyphMode === 'emoji' ? 'emoji' : 'glyph'}
+                              options={[{ value: 'glyph', label: 'Glyph' }, { value: 'emoji', label: 'Filter emoji' }]}
+                              onChange={(v) => setTweak('filterSelGlyphMode', v)} />
+                  {t.filterSelGlyphMode === 'emoji' ? (
+                    <div style={{ fontSize: 10.5, lineHeight: 1.35, color: 'rgba(41,38,27,.5)', marginTop: -4 }}>Each filter shows its own emoji (Tags → Tag list). Filters without one use the glyph below.</div>
                   ) : null}
+                  <GlyphSelect t={t} setTweak={setTweak} k="filterSelGlyph" value={cur} empty=" "
+                               presets={G.map((g) => ({ value: g, label: g }))} />
                   <TweakRadio label="Side" value={t.filterSelGlyphSide === 'right' ? 'right' : 'left'}
                               options={['left', 'right']}
                               onChange={(v) => setTweak('filterSelGlyphSide', v)} />
@@ -2763,6 +2893,14 @@
           {(t.tagStyle || 'regular') !== 'boxed' ? (
             <TweakToggle label="Commas" value={t.tagCommas === true}
                          onChange={(v) => setTweak('tagCommas', v)} />
+          ) : null}
+          {/* TAG EMOJI on tag pills (project pages, list / gallery info, mobile) */}
+          <TweakToggle label="Emojis" value={t.tagEmojiOn !== false}
+                       onChange={(v) => setTweak('tagEmojiOn', v)} />
+          {t.tagEmojiOn !== false ? (
+            <TweakRadio label="Emoji side" value={t.tagEmojiSide === 'left' ? 'left' : 'right'}
+                        options={['left', 'right']}
+                        onChange={(v) => setTweak('tagEmojiSide', v)} />
           ) : null}
           <TagListEditor t={t} setTweak={setTweak} />
         </TweakSection>
@@ -2853,22 +2991,16 @@
                            onChange={(v) => setTweak('projGlyphShow', v)} />
               {t.projGlyphShow !== false ? (
                 <>
-                  <TweakSelect label="Glyph" value={['→', '↳', '↘', '›', '»', '•', '—', '+', '*', '■', '●', '◆', '▸', '✳'].indexOf(t.projGlyph != null ? t.projGlyph : '→') >= 0 ? (t.projGlyph != null ? t.projGlyph : '→') : '__custom'}
-                               options={[
+                  <GlyphSelect t={t} setTweak={setTweak} k="projGlyph" value={t.projGlyph != null ? t.projGlyph : '→'} empty=""
+                               presets={[
                                  { value: '→', label: '→  Arrow' }, { value: '↳', label: '↳  Return arrow' },
                                  { value: '↘', label: '↘  Diagonal arrow' }, { value: '›', label: '›  Chevron' },
                                  { value: '»', label: '»  Double chevron' }, { value: '•', label: '•  Bullet' },
                                  { value: '—', label: '—  Dash' }, { value: '+', label: '+  Plus' },
                                  { value: '*', label: '*  Asterisk' }, { value: '■', label: '■  Square' },
                                  { value: '●', label: '●  Circle' }, { value: '◆', label: '◆  Diamond' },
-                                 { value: '▸', label: '▸  Triangle' }, { value: '✳', label: '✳  Star' },
-                                 { value: '__custom', label: 'Custom…' }
-                               ]}
-                               onChange={(v) => setTweak('projGlyph', v === '__custom' ? '' : v)} />
-                  {['→', '↳', '↘', '›', '»', '•', '—', '+', '*', '■', '●', '◆', '▸', '✳'].indexOf(t.projGlyph != null ? t.projGlyph : '→') < 0 ? (
-                    <TweakText label="Custom glyph" value={t.projGlyph || ''} placeholder="Type any character"
-                               onChange={(v) => setTweak('projGlyph', v)} />
-                  ) : null}
+                                 { value: '▸', label: '▸  Triangle' }, { value: '✳', label: '✳  Star' }
+                               ]} />
                   <ColorHexRow label="Color" value={t.projGlyphColor || '@colorMuted'}
                                onChange={(v) => setTweak('projGlyphColor', v)} />
                   <TweakSlider label="Gap after" value={t.projGlyphGap != null ? t.projGlyphGap : 10}
@@ -2978,6 +3110,7 @@
           <TweakSection label="Hero image" sub collapsible defaultOpen={false}>
             <TweakToggle label="Show" value={t.aboutHeroShow !== false}
                          onChange={(v) => setTweak('aboutHeroShow', v)} />
+            <HeroFileSelect t={t} setTweak={setTweak} k="aboutHeroSrc" def="playground/Jumpdude-b.gif" />
             <TweakSlider label="Size" value={t.aboutHeroSize != null ? t.aboutHeroSize : 100}
                          min={10} max={100} step={1} unit="%"
                          onChange={(v) => setTweak('aboutHeroSize', v)} />

@@ -265,18 +265,55 @@
   /* Toolbar gif: pinned to the bottom of the left panel on the home + about
      views (absent on project pages). Position/size/align/visibility all driven
      by CSS vars from the "Toolbar" tweaks. */
+  /* HERO IMAGE file (Toolbar → Hero Image → File): window.HERO_SRC, a path
+     relative to assets/ (default the Playground shapes loop). A video gets the
+     two-copy seamless loop below; an image / GIF is a single layer. The link
+     goes to the project whose folder holds the file (Playground if that
+     project is hidden or missing). */
+  var HERO_DEFAULT = 'playground/LTX_Shapes_Single_1080.mp4';
+  function heroSrc() { return window.HERO_SRC || HERO_DEFAULT; }
   function gifHTML() {
-    /* single hero image (LTX_Shapes_Single_1080) with idle + hover states. The
-       .lp-gif-stack + .lp-gif-media.is-current wrapper is kept so all Hero Image
-       controls (size via --gif-size, blur/hue/mask/hover via ".lp-gif a") apply. */
-    return '<div class="lp-gif"><a href="#/project/playground" aria-label="View Playground">'
-         +   '<div class="lp-gif-stack">'
-         +     '<video class="lp-gif-media is-current lp-gif-big" style="transition:none" src="assets/playground/LTX_Shapes_Single_1080.mp4" muted playsinline autoplay preload="auto"></video>'
-         +     '<video class="lp-gif-media lp-gif-big" style="transition:none" src="assets/playground/LTX_Shapes_Single_1080.mp4" muted playsinline preload="auto"></video>'
-         +   '</div>'
+    var rel = heroSrc();
+    var url = 'assets/' + rel.split('/').map(encodeURIComponent).join('/');
+    var vid = /\.(mp4|webm|mov|m4v)$/i.test(rel);
+    /* LTX_Shapes_Single_1080 has a small subject in its frame → 115% (.lp-gif-big) */
+    var big = rel === HERO_DEFAULT ? ' lp-gif-big' : '';
+    var pid = rel.split('/')[0];
+    var pr = getProjectById(pid);
+    var target = pr && !pr.hidden ? pid : 'playground';
+    var title = (pr && !pr.hidden && pr.title) || 'Playground';
+    var media = vid
+      ? '<video class="lp-gif-media is-current' + big + '" style="transition:none" src="' + url + '" muted playsinline autoplay preload="auto"></video>'
+      + '<video class="lp-gif-media' + big + '" style="transition:none" src="' + url + '" muted playsinline preload="auto"></video>'
+      : '<img class="lp-gif-media is-current' + big + '" style="transition:none" src="' + url + '" alt="" draggable="false">';
+    return '<div class="lp-gif"><a href="#/project/' + target + '" aria-label="View ' + title.replace(/"/g, '&quot;') + '">'
+         +   '<div class="lp-gif-stack">' + media + '</div>'
          +   '<span class="lp-gif-hot"></span>'
          + '</a></div>';
   }
+  /* the stack is square by default; any other file takes its own shape */
+  function fitHeroShape() {
+    var stack = document.querySelector('.lp-gif-stack');
+    var m = stack && stack.querySelector('.lp-gif-media');
+    if (!m) return;
+    var set = function (w, h) { if (w && h) stack.style.aspectRatio = w + ' / ' + h; };
+    if (m.tagName === 'VIDEO') {
+      if (m.videoWidth) set(m.videoWidth, m.videoHeight);
+      else m.addEventListener('loadedmetadata', function () { set(m.videoWidth, m.videoHeight); }, { once: true });
+    } else {
+      if (m.complete && m.naturalWidth) set(m.naturalWidth, m.naturalHeight);
+      else m.addEventListener('load', function () { set(m.naturalWidth, m.naturalHeight); }, { once: true });
+    }
+  }
+  /* swap the hero file in place (tweak change) without re-rendering the panel */
+  window.refreshHeroImage = function () {
+    var old = document.querySelector('#left-panel .lp-gif');
+    if (!old) return;
+    var tmp = document.createElement('div');
+    tmp.innerHTML = gifHTML();
+    old.parentNode.replaceChild(tmp.firstChild, old);
+    initHeroLoop();
+  };
 
   /* SEAMLESS HERO LOOP — native <video loop> stalls ~1 frame at the wrap while
      it re-decodes the keyframe at t=0 (a general browser behaviour, not clip-
@@ -303,6 +340,7 @@
   function initHeroLoop() {
     if (window.HeroLoop && window.HeroLoop.destroy) window.HeroLoop.destroy();
     window.HeroLoop = null;
+    fitHeroShape();
     var stack = document.querySelector('.lp-gif-stack');
     if (!stack) return;
     var vids = stack.querySelectorAll('.lp-gif-media');
@@ -423,7 +461,7 @@
      back to filterDefs, then the raw key) */
   function labelFor(key) {
     var d = (typeof tagDefs !== 'undefined' ? tagDefs : []).filter(function (x) { return x.key === key; });
-    if (d.length) return d[0].label;
+    if (d.length) return d[0].display || d[0].label;   /* display = label + emoji (Tags toggles) */
     var f = filterDefs.filter(function (x) { return x.key === key; });
     return f.length ? f[0].label : key;
   }
@@ -445,12 +483,17 @@
   function escGlyph(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
+  /* the selection glyph for one filter: its own emoji in "Filter emoji" mode
+     (falls back to the glyph when that filter has none), else the glyph */
+  function fselGlyphFor(f) {
+    var g = window.FSEL_GLYPH != null ? String(window.FSEL_GLYPH) : '•';
+    return (window.FSEL_MODE === 'emoji' && f && f.emoji) ? f.emoji : g;
+  }
   function filterButtonsHTML(onKey) {
-    var g = escGlyph(window.FSEL_GLYPH != null ? window.FSEL_GLYPH : '•');
     return filterDefs.map(function (f) {
       var isActive = activeFilters[f.key] ? ' active' : '';
       return '<span class="fp-item' + (f.key === onKey ? ' fs-on' : '') + '" data-fkey="' + f.key + '">'
-           + '<span class="fp-glyph" aria-hidden="true">' + g + '</span>'
+           + '<span class="fp-glyph" aria-hidden="true">' + escGlyph(fselGlyphFor(f)) + '</span>'
            + '<span class="filter-pill' + isActive + '" data-filter="' + f.key + '">' + f.label + '</span>'
            + '</span>';
     }).join('');
@@ -680,13 +723,33 @@
      measure the push distance (--fsel-shift = glyph width + gap) — run on each
      render and on every tweak change (applyTweaks). */
   function syncFilterSelGlyph() {
-    var ch = window.FSEL_GLYPH != null ? String(window.FSEL_GLYPH) : '•';
+    var byKey = {};
+    filterDefs.forEach(function (f) { byKey[f.key] = f; });
     var gs = document.querySelectorAll('.fp-glyph');
-    for (var i = 0; i < gs.length; i++) if (gs[i].textContent !== ch) gs[i].textContent = ch;
+    for (var i = 0; i < gs.length; i++) {
+      var it = gs[i].parentNode, k = it && it.getAttribute('data-fkey');
+      var ch = fselGlyphFor(byKey[k]);
+      if (gs[i].textContent !== ch) gs[i].textContent = ch;
+    }
     var gap = window.FSEL_GAP != null ? Number(window.FSEL_GAP) || 0 : 8;
-    var w = 0;
-    for (var j = 0; j < gs.length && !w; j++) w = gs[j].offsetWidth;   /* hidden lists measure 0 */
+    /* push distance = glyph width + gap. One width for every item normally;
+       per-item (--fsel-shift on each .fp-item) when emojis differ in width.
+       Hidden lists measure 0 → take the width measured for that key in the
+       visible copy, else the root value. */
+    var wk = {}, w = 0;
+    for (var j = 0; j < gs.length; j++) {
+      var ow = gs[j].offsetWidth; if (!ow) continue;
+      var kk = gs[j].parentNode.getAttribute('data-fkey');
+      if (!wk[kk]) wk[kk] = ow;
+      if (!w) w = ow;
+    }
     if (w) document.documentElement.style.setProperty('--fsel-shift', Math.round(w + gap) + 'px');
+    var per = window.FSEL_MODE === 'emoji';
+    for (var n = 0; n < gs.length; n++) {
+      var item = gs[n].parentNode, key = item.getAttribute('data-fkey');
+      if (per && wk[key]) item.style.setProperty('--fsel-shift', Math.round(wk[key] + gap) + 'px');
+      else item.style.removeProperty('--fsel-shift');
+    }
   }
   window.syncFilterSelGlyph = syncFilterSelGlyph;
   /* Filter buttons → Buttons changed which tags are filters (filterDefs is
@@ -852,11 +915,165 @@
     } else {
       if (window.GalleryDisplay) window.GalleryDisplay.destroy();
       /* list seeds its own title stack + mini via the active/rebuilt callbacks */
-      if (window.ListGallery) window.ListGallery.build({ preserveScroll: preserve });
+      if (window.ListGallery) window.ListGallery.build({ preserveScroll: preserve, focusId: opts && opts.focusId });
     }
     window.refreshDisplaySwitch();
   }
   window.applyDisplayMode = applyDisplayMode;
+
+  /* ── FILTER TRANSITION (Filter buttons → Transition) ────────────────────
+     A filter change rebuilds the active display (list / gallery) from scratch;
+     FilterFX.run(rebuild) wraps that rebuild in an animation:
+       fade / rise / blur — the on-screen thumbnails + the title stack + mini
+         description animate OUT (≈35% of Duration), the rebuild runs, then the
+         new on-screen thumbnails animate IN (≈65%), one after another by
+         Stagger: list = outward from the centred slot, gallery = left → right.
+         Rise drifts them up a little; Blur sharpens them in from a blur.
+       shuffle — the rebuild runs AT ONCE (FLIP): thumbnails of projects that
+         stay glide from their old screen position to the new one; those that
+         drop out keep their old nodes in a ghost layer (so a video / canvas
+         keeps its last frame) and fade + shrink away; new ones grow in.
+     Animations are Web Animations on the OUTER wrappers only (.list-item /
+     .gal-item, the title stack, #mini-info), using the individual
+     translate / scale properties — they compose with the transforms, blurs and
+     dims those elements' children already carry, never replace them.
+     Skipped (plain instant rebuild) when Style = Off, reduced motion is
+     requested, or the reel still covers the list. A new filter click mid-run
+     cancels the old one and starts from what is on screen. */
+  window.FilterFX = (function () {
+    var timer = 0, ghostLayer = null, chromeAnims = [];
+    var EASE_OUT = 'cubic-bezier(.4,0,1,1)', EASE_IN = 'cubic-bezier(.2,.7,.2,1)';
+    var OUT = {
+      fade: { opacity: [1, 0] },
+      rise: { opacity: [1, 0], translate: ['0 0', '0 -14px'] },
+      blur: { opacity: [1, 0], filter: ['blur(0px)', 'blur(10px)'] }
+    };
+    var IN = {
+      fade: { opacity: [0, 1] },
+      rise: { opacity: [0, 1], translate: ['0 22px', '0 0'] },
+      blur: { opacity: [0, 1], filter: ['blur(14px)', 'blur(0px)'] }
+    };
+    function cfg() {
+      var st = String(window.FILTER_FX || 'rise');
+      if (!/^(off|fade|rise|blur|shuffle)$/.test(st)) st = 'rise';
+      var d = Number(window.FILTER_FX_DUR); if (!(d > 0)) d = 600;
+      var sg = Number(window.FILTER_FX_STAGGER); if (isNaN(sg) || sg < 0) sg = 40;
+      return { style: st, dur: d, stagger: sg };
+    }
+    function gallery() { return window.DISPLAY_MODE === 'gallery'; }
+    function onScreen(el) {
+      var r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && r.bottom > -60 && r.top < innerHeight + 60 && r.right > -60 && r.left < innerWidth + 60;
+    }
+    function items() {
+      return [].slice.call(document.querySelectorAll(gallery() ? '#gallery-grid .gal-item' : '#list-track .list-item')).filter(onScreen);
+    }
+    function chrome() {
+      return ['lp-title-stack', 'mini-info'].map(function (id) { return document.getElementById(id); })
+        .filter(function (el) { if (!el) return false; var cs = getComputedStyle(el); return cs.display !== 'none' && cs.visibility !== 'hidden'; });
+    }
+    /* entry order: list = by distance from the window's middle (the centred
+       slot first, then outward); gallery = reading order, left → right */
+    function ranked(els) {
+      var mid = innerHeight / 2;
+      return els.map(function (el) { var r = el.getBoundingClientRect(); return { el: el, r: r }; })
+        .sort(gallery()
+          ? function (a, b) { return (a.r.left - b.r.left) || (a.r.top - b.r.top); }
+          : function (a, b) { return Math.abs(a.r.top + a.r.height / 2 - mid) - Math.abs(b.r.top + b.r.height / 2 - mid); })
+        .map(function (o) { return o.el; });
+    }
+    function anim(el, kf, o) { try { return el.animate(kf, o); } catch (e) { return null; } }
+    function clearChrome() { chromeAnims.forEach(function (a) { try { a && a.cancel(); } catch (e) {} }); chromeAnims = []; }
+    function dropGhosts() { if (ghostLayer && ghostLayer.parentNode) ghostLayer.parentNode.removeChild(ghostLayer); ghostLayer = null; }
+    function cancel() {
+      if (timer) { clearTimeout(timer); timer = 0; }
+      clearChrome(); dropGhosts();
+    }
+    function chromeIn(c, ms, delay) {
+      chrome().forEach(function (el) {
+        var a = anim(el, { opacity: [0, 1] }, { duration: ms, delay: delay || 0, easing: EASE_IN, fill: 'backwards' });
+        if (a) chromeAnims.push(a);
+      });
+    }
+    function animateIn(c) {
+      var inMs = Math.round(c.dur * 0.65);
+      ranked(items()).forEach(function (el, i) {
+        anim(el, IN[c.style], { duration: inMs, delay: Math.min(i * c.stagger, 700), easing: EASE_IN, fill: 'backwards' });
+      });
+      clearChrome();
+      chromeIn(c, inMs, 0);
+    }
+    function shuffle(c, rebuild) {
+      var sel = gallery() ? '#gallery-grid .gal-item' : '#list-track .list-item';
+      var old = items().map(function (el) { return { el: el, id: el.getAttribute('data-id'), r: el.getBoundingClientRect() }; });
+      rebuild();
+      var fresh = items();
+      var used = [];
+      var moveMs = c.dur, growMs = Math.round(c.dur * 0.6), goneMs = Math.round(c.dur * 0.45);
+      var keptIds = {};
+      fresh.forEach(function (el, i) {
+        var id = el.getAttribute('data-id'), r = el.getBoundingClientRect(), best = -1, bd = Infinity;
+        for (var k = 0; k < old.length; k++) {
+          if (used[k] || old[k].id !== id) continue;
+          var d = Math.abs(old[k].r.top - r.top) + Math.abs(old[k].r.left - r.left);
+          if (d < bd) { bd = d; best = k; }
+        }
+        if (best >= 0) {
+          used[best] = true; keptIds[id] = true;
+          var dx = old[best].r.left - r.left, dy = old[best].r.top - r.top;
+          if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5)
+            anim(el, { translate: [dx + 'px ' + dy + 'px', '0 0'] }, { duration: moveMs, easing: EASE_IN });
+        } else {
+          anim(el, { opacity: [0, 1], scale: ['0.86', '1'] },
+               { duration: growMs, delay: Math.round(c.dur * 0.3) + Math.min(i * c.stagger * 0.5, 300), easing: EASE_IN, fill: 'backwards' });
+        }
+      });
+      /* the ones that left: their OLD nodes, parked where they were */
+      var gone = old.filter(function (o, k) { return !used[k]; });
+      if (gone.length) {
+        var host = document.getElementById(gallery() ? 'gallery-stage' : 'list-column');
+        if (host) {
+          dropGhosts();
+          ghostLayer = document.createElement('div');
+          ghostLayer.className = 'filter-fx-ghosts';
+          ghostLayer.setAttribute('aria-hidden', 'true');
+          host.appendChild(ghostLayer);
+          var base = ghostLayer.getBoundingClientRect();
+          gone.forEach(function (o) {
+            var n = o.el;
+            n.style.position = 'absolute';
+            n.style.left = (o.r.left - base.left) + 'px';
+            n.style.top = (o.r.top - base.top) + 'px';
+            n.style.width = o.r.width + 'px';
+            n.style.height = o.r.height + 'px';
+            n.style.margin = '0';
+            ghostLayer.appendChild(n);
+            anim(n, { opacity: [1, 0], scale: ['1', '0.86'] }, { duration: goneMs, easing: EASE_OUT, fill: 'forwards' });
+          });
+          var layer = ghostLayer;
+          setTimeout(function () { if (ghostLayer === layer) dropGhosts(); }, goneMs + 60);
+        }
+      }
+      clearChrome();
+      chromeIn(c, Math.round(c.dur * 0.5), 0);
+    }
+    function run(rebuild) {
+      cancel();
+      var c = cfg();
+      var reduce = false;
+      try { reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+      var covered = window.HomeIntro && window.HomeIntro.progress && window.HomeIntro.progress() < 0.98;
+      if (c.style === 'off' || reduce || covered || typeof Element.prototype.animate !== 'function') { rebuild(); return; }
+      if (c.style === 'shuffle') { shuffle(c, rebuild); return; }
+      var outEls = items(), ch = chrome();
+      if (!outEls.length && !ch.length) { rebuild(); animateIn(c); return; }
+      var outMs = Math.round(c.dur * 0.35);
+      outEls.forEach(function (el) { anim(el, OUT[c.style], { duration: outMs, easing: EASE_OUT, fill: 'forwards' }); });
+      ch.forEach(function (el) { var a = anim(el, OUT[c.style === 'blur' ? 'blur' : 'fade'], { duration: outMs, easing: EASE_OUT, fill: 'forwards' }); if (a) chromeAnims.push(a); });
+      timer = setTimeout(function () { timer = 0; rebuild(); animateIn(c); }, outMs);
+    }
+    return { run: run, cancel: cancel };
+  })();
 
   window.setDisplayMode = function (mode) {
     var prev = window.DISPLAY_MODE;
@@ -1715,6 +1932,15 @@
   function applyFilterState(key) {
     activeFilters = {};
     activeFilters[validFilter(key)] = true;
+    homeFilter = validFilter(key);
+  }
+  /* the filter last shown on home — goHome (logo click, about → home) returns
+     to it, so leaving a project page or clicking the logo on home keeps the
+     selected filter instead of resetting to All */
+  var homeFilter = 'all';
+  function homeHash() {
+    var k = validFilter(homeFilter);
+    return k === 'all' ? '#/' : '#/filter/' + encodeURIComponent(k);
   }
   var lastAppliedFilter = 'all';
 
@@ -1747,6 +1973,13 @@
 
   function applyRoute() {
     var r = parseHash();
+    /* for the filter transition: was the home list already on screen, and
+       which project was centred, BEFORE this route change? */
+    var wasHome = document.documentElement.classList.contains('route-home');
+    /* any route change ends a filter transition still in flight (its delayed
+       rebuild must never run on another page) */
+    if (window.FilterFX) window.FilterFX.cancel();
+    var prevActive = (window.ListGallery && window.ListGallery.activeId) ? window.ListGallery.activeId() : null;
 
     /* close any open image lightbox on navigation */
     closeLightbox();
@@ -1796,10 +2029,19 @@
       setView('home-view');
       /* build whichever thumbnail display is active. List PRESERVES scroll so
          returning from a project lands the user where they were browsing — but
-         a filter change resets to the top of the newly filtered set. */
-      applyDisplayMode({ preserveScroll: !filterChanged });
+         a filter change lands on the first project of the new set, or (Land on
+         → Keep current) on the project that was centred, if it's still in it.
+         A filter change ON the home page plays the Filter buttons →
+         Transition (window.FilterFX) around the rebuild. */
+      var buildOpts = { preserveScroll: !filterChanged };
+      if (filterChanged && window.FILTER_LAND === 'keep' && prevActive) buildOpts.focusId = prevActive;
+      var doBuild = function () {
+        applyDisplayMode(buildOpts);
+        if (window.AdaptiveInvert) window.AdaptiveInvert.refresh();
+      };
+      if (filterChanged && wasHome && window.FilterFX) window.FilterFX.run(doBuild);
+      else { if (window.FilterFX) window.FilterFX.cancel(); doBuild(); }
       if (window.HomeIntro) window.HomeIntro.enter();
-      if (window.AdaptiveInvert) window.AdaptiveInvert.refresh();
     }
     else if (r.view === 'about') {
       setLeftAbout();
@@ -1833,7 +2075,7 @@
   window.aboutLinkHTML = aboutLinkHTML;
   window.closeLinkHTML = closeLinkHTML;
   /* exposed navigation — just set the hash; hashchange triggers applyRoute */
-  window.goHome = function ()   { setHash('#/'); };
+  window.goHome = function ()   { setHash(homeHash()); };
   window.openAbout = function () { setHash('#/about'); };
   window.openProject = function (id) { setHash('#/project/' + id); };
 

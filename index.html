@@ -2365,6 +2365,11 @@
     will-change: transform;
   }
 
+  /* FILTER TRANSITION — Shuffle's ghost layer: the thumbnails of projects that
+     just left the filter, parked at their old spots while they fade away
+     (portfolio.js FilterFX). Never interactive. */
+  .filter-fx-ghosts { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; z-index: 2; }
+  .filter-fx-ghosts > * { pointer-events: none !important; }
   .list-item {
     width: 100%;
     display: flex;
@@ -3098,7 +3103,7 @@
              (aboutHeroCol). Replaced the reel embed, which now lives on the
              home page as the scroll hero. -->
         <div class="about-hero" id="about-hero">
-          <img class="about-hero-img" id="about-hero-img" src="assets/playground/Jumpdude-b.gif" alt="">
+          <img class="about-hero-img" id="about-hero-img" src="assets/playground/Jumpdude-b.gif" data-src="playground/Jumpdude-b.gif" alt="">
         </div>
       </div>
     </div>
@@ -3317,8 +3322,8 @@
       {
         "phrase": "art direction,",
         "target": "bloom",
-        "color": "@colorHighlight",
-        "hoverColor": "@colorHighlight",
+        "color": "#6daef3",
+        "hoverColor": "#6daef3",
         "video": "assets\/bloom\/FlowerOpenCloseLoop_02.mp4",
         "mode": "filter",
         "filter": "art-direction"
@@ -3841,16 +3846,20 @@
     "filterPlace": "toolbar",
     "filterTbX": 0,
     "filterTbY": 0,
+    "filterFx": "rise",
+    "filterFxDur": 460,
+    "filterFxStagger": 65,
+    "filterLand": "first",
     "filterSelGlyphOn": true,
-    "filterSelGlyph": "›",
-    "filterSelGlyphSide": "left",
+    "filterSelGlyph": "‹‹",
+    "filterSelGlyphSide": "right",
     "filterSelGlyphPush": true,
     "filterSelGlyphSize": 100,
     "filterSelGlyphGap": 8,
     "filterSelGlyphY": 0,
     "filterSelGlyphTravel": 24,
     "filterSelGlyphDur": 600,
-    "filterTbAlign": "left",
+    "filterTbAlign": "right",
     "filterShowAll": true,
     "filterTags": [
       "all",
@@ -3966,6 +3975,7 @@
             "art-direction",
             "tech-art",
             "game-design",
+            "tag",
             "3d"
           ],
           "desc": "Being is a puzzle game that explores consciousness, community, and identity through colorful, object-driven worlds.\n\u003cbr>\u003cbr>\nSolo-developed as my design thesis at Bezalel Academy of Arts and Design. Sandberg Design Award winner, and \u003ca href=\"https:\/\/www.midnighteast.com\/mag\/?p=53527\" target=\"_blank\" rel=\"noopener\">Best Project\u003c\/a> at TISFF 2022."
@@ -3985,6 +3995,7 @@
             "art-direction",
             "tech-art",
             "game-design",
+            "tag",
             "3d"
           ],
           "desc": "An interactive narrative experience that moves through liminal spaces, uncovering echoes of forgotten moments and those who came before - a symbolic reflection on cultural isolation, integration, and what we leave behind for others.\u003cbr>\u003cbr>Solo-developed as my master's thesis at The Royal Danish Academy - now a work in progress."
@@ -4064,6 +4075,7 @@
           "tags": [
             "games",
             "animation",
+            "tag",
             "2d"
           ],
           "desc": "Inspired by a passion for combos and a lifetime's worth of tics - I developed, animated, and designed the game with one goal - score as many combo(tic)s as you can before time runs out."
@@ -4078,7 +4090,14 @@
       },
       "consumania": {
         "info": {
-          "desc": "Step into a futuristic mega-mart and stick to your shopping list... or spiral into unstoppable shopping madness!\n\u003cbr>\u003cbr>\nI art directed and developed Consumania at the Royal Danish Academy - shaping its visual identity, guiding artists, modelling 3D assets, and building the systems behind the technical mayhem."
+          "desc": "Step into a futuristic mega-mart and stick to your shopping list... or spiral into unstoppable shopping madness!\n\u003cbr>\u003cbr>\nI art directed and developed Consumania at the Royal Danish Academy - shaping its visual identity, guiding artists, modelling 3D assets, and building the systems behind the technical mayhem.",
+          "tags": [
+            "games",
+            "art-direction",
+            "tech-art",
+            "tag",
+            "3d"
+          ]
         },
         "flow": "strict",
         "blocks": {
@@ -4487,7 +4506,7 @@
     "aboutMarginX": 40,
     "aboutMarginY": 40,
     "aboutSplit": 45,
-    "aboutTextMaxW": 0,
+    "aboutTextMaxW": 530,
     "aboutMetaMaxW": 0,
     "aboutText": "As a visual designer I create characters, environments, and moving narratives that emphasize stylistic play while bringing a light touch to complex subjects. I've art directed and shaped art for independent games, mentored students in game design, and designed motion graphics for music and tech. I'm currently open to new projects and collaborations; \u003ca href=\"mailto:mkalterr@gmail.com\">say hi!\u003c\/a>",
     "aboutHeroShow": true,
@@ -4615,51 +4634,53 @@
     "tagList": [
       {
         "key": "games",
-        "label": "Games"
+        "label": "Games",
+        "emoji": "🎮"
       },
       {
         "key": "game-design",
-        "label": "Game Design"
+        "label": "Game Design",
+        "emoji": "🎲"
       },
       {
         "key": "animation",
-        "label": "Animation"
+        "label": "Animation",
+        "emoji": "📽️"
       },
       {
         "key": "art-direction",
-        "label": "Art Direction"
+        "label": "Art Direction",
+        "emoji": "🧑‍🎨"
       },
       {
         "key": "visual-design",
-        "label": "Visual Design"
+        "label": "Visual Design",
+        "emoji": "🎨"
       },
       {
         "key": "concept-art",
-        "label": "Concept Art"
+        "label": "Concept Art",
+        "emoji": "🖼️"
       },
       {
         "key": "character-design",
-        "label": "Character Design"
+        "label": "Character Design",
+        "emoji": "🦊"
       },
       {
         "key": "comics",
-        "label": "Comics"
+        "label": "Comics",
+        "emoji": "🗨️"
       },
       {
         "key": "tech-art",
-        "label": "Tech Art"
-      },
-      {
-        "key": "development",
-        "label": "Development"
-      },
-      {
-        "key": "motion",
-        "label": "Motion"
+        "label": "Tech Art",
+        "emoji": "📐"
       },
       {
         "key": "motion-design",
-        "label": "Motion Design"
+        "label": "Motion Design",
+        "emoji": "🫨"
       },
       {
         "key": "frame-by-frame",
@@ -4667,19 +4688,23 @@
       },
       {
         "key": "brand-design",
-        "label": "Brand Design"
+        "label": "Brand Design",
+        "emoji": "™️"
       },
       {
         "key": "3d",
-        "label": "3D"
+        "label": "3D",
+        "emoji": "🗿"
       },
       {
         "key": "2d",
-        "label": "2D"
+        "label": "2D",
+        "emoji": "🗺️"
       },
       {
         "key": "illustration",
-        "label": "Illustration"
+        "label": "Illustration",
+        "emoji": "🖍️"
       },
       {
         "key": "solo-dev",
@@ -4687,7 +4712,13 @@
       },
       {
         "key": "level-design",
-        "label": "Level Design"
+        "label": "Level Design",
+        "emoji": "🏂"
+      },
+      {
+        "key": "tag",
+        "label": "Development",
+        "emoji": "🏗️"
       }
     ],
     "pgFreeWheelAngle": 45,
@@ -4710,7 +4741,15 @@
     "filterMaxWCol": 640,
     "filterDirCol": "horizontal",
     "reelMarkerHover": "@colorHighlight",
-    "scrollMarkerHover": "@colorHighlight"
+    "scrollMarkerHover": "@colorHighlight",
+    "filterSelGlyphCustom": true,
+    "allLabel": "All",
+    "allEmoji": "🌍",
+    "tagEmojiOn": true,
+    "tagEmojiSide": "left",
+    "filterEmojiOn": false,
+    "filterEmojiSide": "right",
+    "filterSelGlyphMode": "emoji"
   }/*EDITMODE-END*/;
 
   /* COLOUR TOKEN REFERENCES — any colour tweak may hold a reference to one of
@@ -5436,17 +5475,27 @@
   function applyProjInfo() {
     var changed = false, PL = window.PROJ_LAYOUT || {};
     (window.projects || []).forEach(function (p) {
-      if (!p.__orig) p.__orig = { year: p.year, desc: p.desc, tags: (p.tags || []).slice() };
+      if (!p.__orig) p.__orig = { year: p.year, desc: p.desc, tags: (p.tags || []).slice(), thumb: p.thumb, thumbRatio: p.thumbRatio };
       var info = (PL[p.id] && PL[p.id].info) || {};
       var y = info.year != null ? info.year : p.__orig.year;
       var d = info.desc != null ? info.desc : p.__orig.desc;
       var tg = Array.isArray(info.tags) ? info.tags.slice() : p.__orig.tags.slice();
       if (p.year !== y || p.desc !== d || JSON.stringify(p.tags || []) !== JSON.stringify(tg)) changed = true;
       p.year = y; p.desc = d; p.tags = tg;
+      /* THUMBNAIL (Page content → Thumbnail): a path relative to assets/
+         ("pid/file.ext"). The authored thumbRatio hint only fits the authored
+         file, so an override drops it — list / gallery measure the new file. */
+      var th = info.thumb ? info.thumb : p.__orig.thumb;
+      var tr = info.thumb ? undefined : p.__orig.thumbRatio;
+      if (p.thumb !== th) { thumbChanged = true; p.thumb = th; }
+      p.thumbRatio = tr;
     });
     return changed;
   }
+  var thumbChanged = false;
   window.applyProjInfo = applyProjInfo;
+  /* true once after an applyProjInfo() that swapped any project's thumbnail */
+  window.takeProjThumbChanged = function () { var c = thumbChanged; thumbChanged = false; return c; };
   /* PROJECT BUTTONS (Page content → Toolbar → Buttons): projLayout[pid].buttons
      = [{type:'text'|'image', href, label?, src?, size?, tint?, color?, hoverColor?}].
      Unset = the authored p.play as one text button. Text buttons share the
@@ -6109,6 +6158,11 @@
     /* Gap split: horizontal (between buttons in a row / columns) + vertical
        (between buttons in a column / wrapped lines); both fall back to the old
        single filterGap */
+    /* filter transition (portfolio.js FilterFX) + where a filter change lands */
+    window.FILTER_FX         = t.filterFx || 'rise';
+    window.FILTER_FX_DUR     = t.filterFxDur != null ? Number(t.filterFxDur) : 600;
+    window.FILTER_FX_STAGGER = t.filterFxStagger != null ? Number(t.filterFxStagger) : 40;
+    window.FILTER_LAND       = t.filterLand === 'keep' ? 'keep' : 'first';
     /* selection glyph (see the .fp-glyph CSS) */
     var fsOn = t.filterSelGlyphOn === true;
     var rc0 = document.documentElement.classList;
@@ -6116,6 +6170,9 @@
     rc0.toggle('fsel-right', t.filterSelGlyphSide === 'right');
     rc0.toggle('fsel-push', t.filterSelGlyphPush !== false);
     window.FSEL_GLYPH = (t.filterSelGlyph != null && t.filterSelGlyph !== '') ? String(t.filterSelGlyph) : '•';
+    /* 'glyph' = the one glyph above for every button; 'emoji' = each filter's
+       own emoji (Tag list → Emoji), falling back to the glyph when it has none */
+    window.FSEL_MODE = t.filterSelGlyphMode === 'emoji' ? 'emoji' : 'glyph';
     window.FSEL_GAP = t.filterSelGlyphGap != null ? Number(t.filterSelGlyphGap) || 0 : 8;
     r.setProperty('--fsel-gap', window.FSEL_GAP + 'px');
     r.setProperty('--fsel-size', ((t.filterSelGlyphSize != null ? t.filterSelGlyphSize : 100) / 100).toFixed(3));
@@ -6275,6 +6332,14 @@
        on: the idle state holds a still frame and hovering resumes playback from
        exactly where it was paused (js/portfolio.js HeroLoop). */
     window.GIF_FREEZE_IDLE = !!t.gifFreezeIdle;
+    /* HERO IMAGE file — path relative to assets/; '' = the default loop.
+       Swapped in place on change (js/portfolio.js refreshHeroImage). */
+    (function () {
+      var hs = t.gifSrc ? String(t.gifSrc) : '';
+      if (hs === (window.HERO_SRC || '')) return;
+      window.HERO_SRC = hs;
+      if (window.refreshHeroImage) window.refreshHeroImage();
+    })();
     if (window.HeroLoop && window.HeroLoop.applyMode) window.HeroLoop.applyMode();
     /* Hero-image alpha mask: an SVG rounded-rect, blurred. Corner radius =
        roundness (0 = sharp rectangle, 100 = full ellipse/circle); blur =
@@ -6431,6 +6496,12 @@
       window.__projLayoutJ = lj;
       if (!first && window.rerenderProjectContent) window.rerenderProjectContent();
       if (!first && infoChanged && window.refreshProjectLeft) window.refreshProjectLeft();
+      /* a swapped thumbnail → rebuild the home display (list / gallery) or the
+         mobile feed so the new file shows without a reload */
+      if (window.takeProjThumbChanged() && !first && !/#\/(project|about)/.test(location.hash || '')) {
+        if (window.__MOBILE__) { if (window.MobileApp) window.MobileApp.applyRoute(); }
+        else if (window.applyDisplayMode) window.applyDisplayMode({ preserveScroll: true });
+      }
     })();
     r.setProperty('--proj-text-maxw', (t.projTextMaxW != null ? t.projTextMaxW : 560) + 'px');
     r.setProperty('--lightbox-size', (t.lightboxSize != null ? t.lightboxSize : 0.75));
@@ -6521,7 +6592,30 @@
       r.setProperty('--about-hero-align',
         ({ left: 'flex-start', center: 'center', right: 'flex-end' })[t.aboutHeroAlign] || 'flex-start');
       var __hi = document.getElementById('about-hero-img');
-      if (__hi) __hi.style.display = (t.aboutHeroShow === false) ? 'none' : '';
+      /* FILE (About → Hero image → File): t.aboutHeroSrc = path relative to
+         assets/ ('' = playground/Jumpdude-b.gif). A video swaps the <img> for a
+         muted looping <video> with the same id/class (and back). */
+      if (__hi) {
+        var __rel = t.aboutHeroSrc ? String(t.aboutHeroSrc) : 'playground/Jumpdude-b.gif';
+        var __url = 'assets/' + __rel.split('/').map(encodeURIComponent).join('/');
+        var __isVid = /\.(mp4|webm|mov|m4v)$/i.test(__rel);
+        if (__hi.getAttribute('data-src') !== __rel) {
+          var __el = __hi;
+          if (__isVid !== (__hi.tagName === 'VIDEO')) {
+            __el = document.createElement(__isVid ? 'video' : 'img');
+            __el.id = 'about-hero-img'; __el.className = 'about-hero-img';
+            if (__isVid) { __el.muted = true; __el.loop = true; __el.autoplay = true; __el.playsInline = true;
+                           __el.setAttribute('muted', ''); __el.setAttribute('playsinline', ''); __el.setAttribute('preload', 'auto'); }
+            else { __el.alt = ''; __el.draggable = false; }
+            __hi.parentNode.replaceChild(__el, __hi);
+          }
+          __el.setAttribute('data-src', __rel);
+          __el.src = __url;
+          if (__isVid) { var __pp = __el.play && __el.play(); if (__pp && __pp.catch) __pp.catch(function () {}); }
+          __hi = __el;
+        }
+        __hi.style.display = (t.aboutHeroShow === false) ? 'none' : '';
+      }
     }
 
     /* ABOUT META (Education / Awards / Conferences & Exhibitions) — rendered
@@ -7831,7 +7925,7 @@
   /* the first applyTweaks() ran before this array existed — apply any saved
      per-project info (Page content → Toolbar) now, before anything renders */
   window.projects = projects;
-  if (window.applyProjInfo) window.applyProjInfo();
+  if (window.applyProjInfo) { window.applyProjInfo(); window.takeProjThumbChanged(); }
 
   /* Filter definitions — left-toolbar category toggles (OR-filter the list).
      Keep this short: these are broad categories, each present in projects'
@@ -7877,6 +7971,11 @@
      project that uses it. */
   window.__tagDefsAuthored = tagDefs.map(function (d) { return { key: d.key, label: d.label }; });
   window.tagDefs = tagDefs;
+  /* label + emoji with one space, emoji on `side` ('left' | 'right') */
+  window.withEmoji = function (label, emoji, on, side) {
+    if (!on || !emoji) return label;
+    return side === 'left' ? emoji + ' ' + label : label + ' ' + emoji;
+  };
   function applyTagList(t) {
     /* hoisted: applyTweaks can call this before tagDefs exists — the call
        after the snapshot below applies it once it does */
@@ -7888,8 +7987,22 @@
       if (!list.some(function (x) { return x && x.key === d.key; })) del[d.key] = 1;
     });
     window.__tagDeleted = del;
+    /* TAG EMOJI (Tag list → each tag's Emoji; Tags → Emojis on / Emoji side):
+       label stays plain, `emoji` is the tag's own, `display` = what tag pills
+       show (label + emoji per the Tags toggles). Filter buttons build their
+       own text from label + emoji with the Filter buttons toggles. */
+    var emOn = t.tagEmojiOn !== false, emSide = t.tagEmojiSide === 'left' ? 'left' : 'right';
+    var prevDisp = tagDefs.map(function (d) { return d.key + '=' + (d.display || d.label); }).join('|');
     tagDefs.length = 0;
-    src.forEach(function (d) { if (d && d.key) tagDefs.push({ key: d.key, label: d.label != null && d.label !== '' ? d.label : d.key }); });
+    src.forEach(function (d) {
+      if (!d || !d.key) return;
+      var lb = d.label != null && d.label !== '' ? d.label : d.key;
+      var em = d.emoji ? String(d.emoji).trim() : '';
+      tagDefs.push({ key: d.key, label: lb, emoji: em, display: window.withEmoji(lb, em, emOn, emSide) });
+    });
+    /* a changed pill text → re-render the open project page's toolbar tags */
+    var nextDisp = tagDefs.map(function (d) { return d.key + '=' + d.display; }).join('|');
+    if (prevDisp && prevDisp !== nextDisp && window.refreshProjectLeft) window.refreshProjectLeft();
     var boxed = t.tagStyle === 'boxed', css = '';
     (list || []).forEach(function (d) {
       if (!d || !d.key) return;
@@ -7922,30 +8035,41 @@
     if (typeof filterDefs === 'undefined' || !window.__filterDefsAuthored) return;
     var showAll = t.filterShowAll !== false;
     var allDef = window.__filterDefsAuthored.filter(function (d) { return d.key === 'all'; })[0] || { key: 'all', label: 'All' };
+    /* Tags → Tag list → All: the All button's text (t.allLabel; empty → authored) + emoji (t.allEmoji) */
+    if (t.allLabel != null && String(t.allLabel).trim() !== '') allDef = { key: 'all', label: String(t.allLabel) };
+    allDef = { key: 'all', label: allDef.label, emoji: t.allEmoji ? String(t.allEmoji).trim() : '' };
+    /* FILTER EMOJI (Filter buttons → Emojis on / Emoji side): each def keeps
+       its plain `name` + `emoji`; `label` (what every button renders) gets the
+       emoji per these toggles. The selection glyph's "Filter emoji" source
+       reads `emoji` directly (portfolio.js syncFilterSelGlyph). */
+    var fOn = t.filterEmojiOn !== false, fSide = t.filterEmojiSide === 'left' ? 'left' : 'right';
+    var mk = function (key, name, emoji) { return { key: key, name: name, emoji: emoji || '', label: window.withEmoji(name, emoji, fOn, fSide) }; };
     var next = [];
     if (Array.isArray(t.filterTags)) {
       /* filterTags ORDER is the button order (Buttons → ↑ / ↓). 'all' in the
          array marks the All button's slot (kept while All is off, so it comes
          back in place); no 'all' entry → All goes first. */
-      if (showAll && t.filterTags.indexOf('all') === -1) next.push({ key: 'all', label: allDef.label });
+      if (showAll && t.filterTags.indexOf('all') === -1) next.push(mk('all', allDef.label, allDef.emoji));
       var seen = {};
       t.filterTags.forEach(function (k) {
         if (seen[k]) return; seen[k] = true;
-        if (k === 'all') { if (showAll) next.push({ key: 'all', label: allDef.label }); return; }
+        if (k === 'all') { if (showAll) next.push(mk('all', allDef.label, allDef.emoji)); return; }
         if (window.tagIsDeleted(k)) return;
         var d = tagDefs.filter(function (x) { return x.key === k; })[0];
-        if (d) next.push({ key: d.key, label: d.label });
+        if (d) next.push(mk(d.key, d.label, d.emoji));
       });
     } else {
       window.__filterDefsAuthored.forEach(function (d) {
         if (d.key === 'all' && !showAll) return;
+        if (d.key === 'all') { next.push(mk('all', allDef.label, allDef.emoji)); return; }
         var td = tagDefs.filter(function (x) { return x.key === d.key; })[0];
-        next.push({ key: d.key, label: td ? td.label : d.label });
+        next.push(mk(d.key, td ? td.label : d.label, td ? td.emoji : ''));
       });
     }
     var same = next.length === filterDefs.length && next.every(function (d, i) {
-      return filterDefs[i].key === d.key && filterDefs[i].label === d.label;
-    });
+      return filterDefs[i].key === d.key && filterDefs[i].label === d.label && filterDefs[i].emoji === d.emoji;
+    }) && window.__fselModeApplied === window.FSEL_MODE;
+    window.__fselModeApplied = window.FSEL_MODE;
     if (same) return;
     filterDefs.length = 0;
     next.forEach(function (d) { filterDefs.push(d); });
@@ -7963,14 +8087,14 @@
      The ?v= stamp is a CACHE BUSTER: a stale viewer that re-fetched index.html but
      served cached copies of these scripts renders the page with OLD behaviour and
      no error. Bump the date when a script change must be guaranteed to land. -->
-<script src="js/list-gallery.js?v=20261108d"></script>
-<script src="js/gallery-display.js?v=20261102b"></script>
+<script src="js/list-gallery.js?v=20261116a"></script>
+<script src="js/gallery-display.js?v=20261117a"></script>
 <script src="js/adaptive-invert.js?v=20261107a"></script>
 <script src="js/playground-gallery.js?v=20261107b"></script>
 <script src="js/posters-gallery.js?v=20261103a"></script>
 <script src="js/home-intro.js?v=20261109b"></script>
-<script src="js/portfolio.js?v=20261108h"></script>
-<script src="js/mobile-app.js?v=20261108h"></script>
+<script src="js/portfolio.js?v=20261117c"></script>
+<script src="js/mobile-app.js?v=20261117a"></script>
 <script src="js/media-power.js?v=20261102b"></script>
 
 <!-- MOBILE HARNESS MODE (editor only; inert for visitors) - index.html hosts the
@@ -8074,7 +8198,7 @@
     ['https://unpkg.com/@babel/standalone@7.29.0/babel.min.js',
      'sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y']
   ];
-  var JSX = ['js/tweaks-panel.jsx?v=20261102b', 'js/tweaks-app.jsx?v=20261109a'];
+  var JSX = ['js/tweaks-panel.jsx?v=20261102b', 'js/tweaks-app.jsx?v=20261117d'];
   var bootP = null, onKey = null;
 
   function load(url, integrity) {

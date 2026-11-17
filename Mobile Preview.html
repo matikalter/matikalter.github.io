@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mobile Preview — Mati Kalter</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --bezel: #111; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+    background: #d9d9d6;
+    color: #111;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* control bar */
+  .bar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    padding: 14px 22px;
+    background: rgba(255,255,255,0.82);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid #c9c9c6;
+  }
+  .bar h1 { font-size: 15px; font-weight: 500; letter-spacing: -0.01em; }
+  .bar .group { display: flex; align-items: center; gap: 8px; }
+  .bar label { font-size: 12px; color: #666; }
+  .seg { display: flex; border: 1px solid #111; border-radius: 6px; overflow: hidden; }
+  .seg button {
+    font-family: inherit; font-size: 12px; padding: 6px 12px;
+    background: #fff; color: #111; border: 0; border-right: 1px solid #111; cursor: pointer;
+  }
+  .seg button:last-child { border-right: 0; }
+  .seg button.on { background: #111; color: #fff; }
+  .seg button:disabled { cursor: default; }
+  .bar .hints { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; max-width: 470px; }
+  .bar .hint { font-size: 11px; color: #888; text-align: right; }
+  .bar a { color: #8089ef; text-decoration: none; }
+
+  /* stage */
+  .stage {
+    display: flex; flex-wrap: wrap; gap: 56px 64px;
+    align-items: flex-start; justify-content: center;
+    padding: 48px 32px 80px;
+    transition: padding-left 0.3s ease;
+  }
+  body.tw-open .stage { padding-left: 360px; }
+  .frame-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .frame-label { font-size: 12px; color: #555; letter-spacing: 0.02em; }
+
+  /* phone bezel */
+  .phone {
+    position: relative;
+    background: var(--bezel);
+    border-radius: 46px;
+    padding: 14px;
+    box-shadow: 0 30px 70px rgba(0,0,0,0.28), 0 4px 12px rgba(0,0,0,0.2);
+  }
+  .screen { position: relative; border-radius: 34px; overflow: hidden; background: #fff; }
+  .screen iframe { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
+  .notch {
+    position: absolute; z-index: 3; background: var(--bezel);
+    top: 0; left: 50%; transform: translateX(-50%);
+    width: 46%; height: 26px; border-radius: 0 0 18px 18px;
+  }
+  .phone.landscape .notch {
+    top: 50%; left: 0; transform: translateY(-50%);
+    width: 26px; height: 46%; border-radius: 0 18px 18px 0;
+  }
+
+  /* ── tweaks panel — lives in the gray margin, NOT over the phone ── */
+  .tw {
+    position: fixed; top: 74px; left: 20px; bottom: 20px;
+    width: 320px; z-index: 20;
+    background: #fff; border: 1px solid #111; border-radius: 12px;
+    display: none; flex-direction: column;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.22);
+  }
+  body.tw-open .tw { display: flex; }
+  .tw-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 15px 18px; border-bottom: 1px solid #eee;
+  }
+  .tw-head h3 { font-size: 14px; font-weight: 500; letter-spacing: -0.01em; }
+  .tw-head .tw-hist { display: flex; align-items: center; gap: 2px; }
+  .tw-head button { background: none; border: 0; font-size: 18px; line-height: 1; cursor: pointer; color: #111; padding: 3px 6px; }
+  .tw-head .tw-undo, .tw-head .tw-redo { font-size: 16px; }
+  .tw-body { overflow-y: auto; padding: 6px 18px 30px; flex: 1; }
+  .tw-sect { border-bottom: 1px solid #eee; }
+  .tw-sect-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 0; cursor: pointer; font-size: 12px; font-weight: 500;
+    letter-spacing: 0.04em; text-transform: uppercase; color: #111;
+  }
+  .tw-sect-head .chev { font-size: 10px; color: #999; transition: transform 0.2s; }
+  .tw-sect.open .tw-sect-head .chev { transform: rotate(90deg); }
+  .tw-sect-body { display: none; padding-bottom: 12px; }
+  .tw-sect.open .tw-sect-body { display: block; }
+  .tw-ctrl { margin-bottom: 15px; }
+  .tw-ctrl > label {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 12px; color: #888; margin-bottom: 7px;
+  }
+  .tw-ctrl > label .val { color: #111; font-variant-numeric: tabular-nums; }
+  .tw-ctrl input[type=range] { width: 100%; accent-color: #8089ef; }
+  .tw-seg { display: flex; border: 1px solid #111; border-radius: 6px; overflow: hidden; }
+  .tw-seg button {
+    flex: 1; padding: 7px 4px; font-size: 12px; font-family: inherit;
+    background: #fff; color: #111; border: 0; border-right: 1px solid #111; cursor: pointer;
+  }
+  .tw-seg button:last-child { border-right: 0; }
+  .tw-seg button.on { background: #111; color: #fff; }
+  .tw-swatches { display: flex; gap: 8px; }
+  .tw-sw { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.2); cursor: pointer; padding: 0; }
+  .tw-sw.on { outline: 2px solid #8089ef; outline-offset: 2px; }
+  .tw-color { display: flex; gap: 8px; align-items: center; }
+  .tw-color select { flex: 1; min-width: 0; height: 28px; font: 12px inherit; font-family: inherit; color: #111; background: #fff; border: 1px solid #111; border-radius: 6px; padding: 0 6px; }
+  .tw-color input[type=color] { width: 44px; height: 28px; padding: 0; border: 1px solid #111; border-radius: 6px; background: none; cursor: pointer; }
+</style>
+</head>
+<body>
+  <div class="bar">
+    <h1>Mobile Preview</h1>
+    <div class="group">
+      <label>Device</label>
+      <div class="seg" id="device-seg">
+        <button data-w="390" data-h="844" class="on">iPhone 14</button>
+        <button data-w="430" data-h="932">iPhone Pro Max</button>
+        <button data-w="360" data-h="800">Android</button>
+      </div>
+    </div>
+    <div class="group">
+      <label>Show</label>
+      <div class="seg" id="orient-seg">
+        <button data-mode="both" class="on">Both</button>
+        <button data-mode="portrait">Portrait</button>
+        <button data-mode="landscape">Landscape</button>
+      </div>
+    </div>
+    <div class="seg"><button id="tw-toggle">Tweaks</button></div>
+    <div class="seg"><button id="save-mode">Enable saving</button></div>
+    <div class="hints">
+      <span class="hint" id="hint-save"></span>
+      <span class="hint">Live view of <code>index.html?device=mobile</code> — tap-and-hold a thumbnail. Tweaks open in the margin (toolbar <b>Tweaks</b> or the button above).</span>
+    </div>
+  </div>
+
+  <!-- tweaks panel (populated by JS) -->
+  <div class="tw" id="tw">
+    <div class="tw-head"><h3>Mobile Tweaks</h3><div class="tw-hist"><button class="tw-undo" id="tw-undo" title="Undo">↶</button><button class="tw-redo" id="tw-redo" title="Redo">↷</button><button id="tw-close" title="Close">×</button></div></div>
+    <div class="tw-body" id="tw-body"></div>
+  </div>
+
+  <div class="stage" id="stage"></div>
+
+  <script>
+    var W = 390, H = 844, MODE = 'both';
+    var SRC = 'index.html?device=mobile&embedded=1';
+    var stage = document.getElementById('stage');
+
+    function frame(kind) {
+      var portrait = kind === 'portrait';
+      var w = portrait ? W : H, h = portrait ? H : W;
+      var wrap = document.createElement('div'); wrap.className = 'frame-wrap';
+      var lbl = document.createElement('div'); lbl.className = 'frame-label';
+      lbl.textContent = (portrait ? 'Portrait' : 'Landscape') + ' · ' + w + '×' + h;
+      var phone = document.createElement('div');
+      phone.className = 'phone' + (portrait ? '' : ' landscape');
+      var screen = document.createElement('div'); screen.className = 'screen';
+      screen.style.width = w + 'px'; screen.style.height = h + 'px';
+      var notch = document.createElement('div'); notch.className = 'notch';
+      var ifr = document.createElement('iframe');
+      ifr.src = SRC; ifr.setAttribute('scrolling', 'yes');
+      screen.appendChild(notch); screen.appendChild(ifr);
+      phone.appendChild(screen);
+      wrap.appendChild(phone); wrap.appendChild(lbl);
+      return wrap;
+    }
+    function iframes() { return [].slice.call(document.querySelectorAll('.screen iframe')); }
+    function primary() { var f = iframes(); return f[0] || null; }
+
+    function render() {
+      stage.innerHTML = '';
+      if (MODE === 'both' || MODE === 'portrait') stage.appendChild(frame('portrait'));
+      if (MODE === 'both' || MODE === 'landscape') stage.appendChild(frame('landscape'));
+      // re-seed the panel once the (new) primary iframe reports ready
+      seedWhenReady();
+    }
+
+    document.getElementById('device-seg').addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      this.querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
+      b.classList.add('on');
+      W = +b.getAttribute('data-w'); H = +b.getAttribute('data-h');
+      render();
+    });
+    document.getElementById('orient-seg').addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      this.querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
+      b.classList.add('on');
+      MODE = b.getAttribute('data-mode');
+      render();
+    });
+
+    /* ── TWEAKS PANEL (lives in the harness, in the gray margin) ──────────
+       The panel is UI only — it delegates every change to the PRIMARY phone's
+       MobileApp.setTweak, which persists (localStorage mirror + host disk post)
+       and updates that frame; the message relay below mirrors the edit to the
+       other phone so both stay in sync. */
+    var SCHEMA = [
+      { title: 'Logo', open: true, ctrls: [
+        { t: 'range', k: 'mLogoSize', label: 'Size', min: 14, max: 72, step: 1 },
+        { t: 'seg', k: 'mLogoAlign', label: 'Align', opts: [['left', 'Left'], ['center', 'Center'], ['right', 'Right']] },
+        { t: 'color', k: 'mLogoColor', label: 'Idle color' },
+        { t: 'color', k: 'mLogoTapColor', label: 'Tap color' }
+      ]},
+      { title: 'Logo shape', open: false, ctrls: [
+        { t: 'toggle', k: 'mShapeShow', label: 'Show' },
+        { t: 'range', k: 'mShapeW', label: 'Width', min: 0, max: 200, step: 1 },
+        { t: 'range', k: 'mShapeH', label: 'Height', min: 0, max: 100, step: 1 },
+        { t: 'range', k: 'mShapeRadius', label: 'Roundness', min: 0, max: 100, step: 1 },
+        { t: 'color', k: 'mShapeColor', label: 'Color' },
+        { t: 'range', k: 'mShapeOpacity', label: 'Opacity', min: 0, max: 1, step: 0.05 },
+        { t: 'range', k: 'mShapeBlur', label: 'Blur (content behind)', min: 0, max: 30, step: 1 },
+        { t: 'range', k: 'mShapeEdgeBlur', label: 'Edge blur', min: 0, max: 20, step: 1 }
+      ]},
+      { title: 'Home feed', open: true, ctrls: [
+        { t: 'seg', k: 'mFeedMode', label: 'Label mode', opts: [['hold', 'On hold (A)'], ['above', 'Above (B)']] },
+        { t: 'range', k: 'mFeedGap', label: 'Gap between', min: 16, max: 120, step: 2 },
+        { t: 'range', k: 'mTitleSize', label: 'Title size', min: 14, max: 70, step: 1 },
+        { t: 'range', k: 'mMiniSize', label: 'Mini size', min: 11, max: 24, step: 1 },
+        { t: 'range', k: 'mTagsSize', label: 'Tags size', min: 9, max: 20, step: 1 }
+      ]},
+      { title: 'Filters', open: false, ctrls: [
+        { t: 'range', k: 'mFilterSize', label: 'Size', min: 11, max: 26, step: 1 },
+        { t: 'seg', k: 'mFilterAlign', label: 'Align', opts: [['left', 'Left'], ['center', 'Center'], ['right', 'Right']] },
+        { t: 'range', k: 'mFilterGap', label: 'Spacing', min: 0, max: 1, step: 0.05 }
+      ]},
+      { title: 'Hold labels (A)', open: false, ctrls: [
+        { t: 'range', k: 'mHoldBlur', label: 'Blur', min: 0, max: 24, step: 1 },
+        { t: 'range', k: 'mHoldOpacity', label: 'Opacity', min: 0, max: 1, step: 0.05 },
+        { t: 'range', k: 'mHoldSaturation', label: 'Saturation', min: 0, max: 1, step: 0.05 },
+        { t: 'range', k: 'mHoldTextY', label: 'Text Y (%)', min: 0, max: 100, step: 1 },
+        { t: 'seg', k: 'mHoldAlign', label: 'Text align', opts: [['left', 'Left'], ['center', 'Center'], ['right', 'Right']] }
+      ]},
+      { title: 'Above labels (B)', open: false, ctrls: [
+        { t: 'seg', k: 'mLabelAlign', label: 'Label align', opts: [['left', 'Left'], ['center', 'Center'], ['right', 'Right']] }
+      ]},
+      { title: 'Project page', open: false, ctrls: [
+        { t: 'toggle', k: 'mDivShow', label: 'Divider' },
+        { t: 'range', k: 'mDivSpace', label: 'Divider space', min: 0, max: 80, step: 1 },
+        { t: 'range', k: 'mProjTitleSize', label: 'Title size', min: 20, max: 70, step: 1 }
+      ]}
+    ];
+    var DEFAULTS = {
+      mLogoSize: 22, mLogoAlign: 'center', mFeedMode: 'above', mFeedGap: 48,
+      mTitleSize: 20, mProjTitleSize: 40, mMiniSize: 15, mTagsSize: 12,
+      mHoldBlur: 6, mHoldOpacity: 0.5, mHoldSaturation: 0.4,
+      mHoldTextY: 50, mHoldAlign: 'center', mLabelAlign: 'left',
+      mFilterSize: 15, mFilterAlign: 'left', mFilterGap: 0.5,
+      mLogoColor: '#111111', mLogoTapColor: '#8089ef',
+      mDivShow: true, mDivSpace: 30,
+      mShapeShow: true, mShapeW: 48, mShapeH: 24, mShapeRadius: 0,
+      mShapeColor: '#ffffff', mShapeOpacity: 1, mShapeBlur: 0, mShapeEdgeBlur: 0
+    };
+    var TW_COLOR_TOKENS = [['colorText', 'Text'], ['colorBg', 'Background'], ['colorBgSec', 'Bg secondary'],
+      ['colorBgTer', 'Bg tertiary'], ['colorHighlight', 'Highlight'], ['colorBorder', 'Border'],
+      ['colorMuted', 'Muted'], ['colorFaint', 'Faint']];
+    function twColorRef(v) {
+      var m = /^@(color[A-Za-z]+)(?:\/([0-9a-fA-F]{2}))?$/.exec(String(v == null ? '' : v));
+      return m ? { token: m[1], a: m[2] ? m[2].toLowerCase() : 'ff' } : null;
+    }
+    function twResolve(v) {
+      var ref = twColorRef(v);
+      if (!ref) return String(v || '#000000');
+      var h = String(getVal(ref.token) || '#000000').trim().replace(/^#/, '').toLowerCase();
+      if (h.length === 3) h = h.split('').map(function (c) { return c + c; }).join('');
+      h = h.slice(0, 6);
+      if (!/^[0-9a-f]{6}$/.test(h)) h = '000000';
+      return '#' + h + (ref.a === 'ff' ? '' : ref.a);
+    }
+    function getVal(k) {
+      var p = primary();
+      try { if (p && p.contentWindow && p.contentWindow.MobileApp) return p.contentWindow.MobileApp.getValue(k); } catch (e) {}
+      try { if (p && p.contentWindow && p.contentWindow.TWEAKS && p.contentWindow.TWEAKS[k] != null) return p.contentWindow.TWEAKS[k]; } catch (e) {}
+      return DEFAULTS[k];
+    }
+    function setVal(k, v) {
+      var p = primary();
+      try { if (p && p.contentWindow && p.contentWindow.MobileApp) { p.contentWindow.MobileApp.setTweak(k, v); return; } } catch (e) {}
+    }
+
+    var body = document.getElementById('tw-body');
+    function buildPanel() {
+      body.innerHTML = '';
+      SCHEMA.forEach(function (sec) {
+        var sEl = document.createElement('div');
+        sEl.className = 'tw-sect' + (sec.open ? ' open' : '');
+        var head = document.createElement('div');
+        head.className = 'tw-sect-head';
+        head.innerHTML = sec.title + '<span class="chev">▶</span>';
+        head.addEventListener('click', function () { sEl.classList.toggle('open'); });
+        var bd = document.createElement('div'); bd.className = 'tw-sect-body';
+        sec.ctrls.forEach(function (c) { bd.appendChild(ctrl(c)); });
+        sEl.appendChild(head); sEl.appendChild(bd); body.appendChild(sEl);
+      });
+    }
+    function ctrl(c) {
+      var wrap = document.createElement('div'); wrap.className = 'tw-ctrl';
+      if (c.t === 'range') {
+        var v = getVal(c.k);
+        wrap.innerHTML = '<label>' + c.label + '<span class="val" data-val="' + c.k + '">' + v + '</span></label>'
+          + '<input type="range" data-key="' + c.k + '" min="' + c.min + '" max="' + c.max + '" step="' + c.step + '" value="' + v + '">';
+        wrap.querySelector('input').addEventListener('input', function () {
+          var val = parseFloat(this.value);
+          wrap.querySelector('.val').textContent = val;
+          setVal(c.k, val);
+        });
+      } else if (c.t === 'seg') {
+        var cur = getVal(c.k);
+        var seg = document.createElement('div'); seg.className = 'tw-seg'; seg.setAttribute('data-group', c.k);
+        c.opts.forEach(function (o) {
+          var b = document.createElement('button');
+          b.textContent = o[1]; b.setAttribute('data-v', o[0]);
+          if (cur === o[0]) b.classList.add('on');
+          b.addEventListener('click', function () {
+            seg.querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
+            b.classList.add('on'); setVal(c.k, o[0]);
+          });
+          seg.appendChild(b);
+        });
+        var lab = document.createElement('label'); lab.textContent = c.label;
+        wrap.appendChild(lab); wrap.appendChild(seg);
+      } else if (c.t === 'toggle') {
+        var curb = !!getVal(c.k);
+        var tseg = document.createElement('div'); tseg.className = 'tw-seg'; tseg.setAttribute('data-group', c.k); tseg.setAttribute('data-bool', '1');
+        [['true', 'On'], ['false', 'Off']].forEach(function (o) {
+          var b = document.createElement('button');
+          b.textContent = o[1]; b.setAttribute('data-v', o[0]);
+          if (String(curb) === o[0]) b.classList.add('on');
+          b.addEventListener('click', function () {
+            tseg.querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
+            b.classList.add('on'); setVal(c.k, o[0] === 'true');
+          });
+          tseg.appendChild(b);
+        });
+        var tlab = document.createElement('label'); tlab.textContent = c.label;
+        wrap.appendChild(tlab); wrap.appendChild(tseg);
+      } else if (c.t === 'color') {
+        /* colour = SOURCE dropdown (Custom or a Colors palette token, stored as
+           a "@colorText" reference) + a native picker for the manual override */
+        var cg = document.createElement('div'); cg.className = 'tw-color'; cg.setAttribute('data-color-group', c.k);
+        var sel = document.createElement('select');
+        sel.innerHTML = '<option value="">Custom</option>' + TW_COLOR_TOKENS.map(function (p) { return '<option value="' + p[0] + '">' + p[1] + '</option>'; }).join('');
+        var pick = document.createElement('input'); pick.type = 'color';
+        var curv = getVal(c.k), cref = twColorRef(curv);
+        sel.value = cref ? cref.token : '';
+        pick.value = twResolve(curv).slice(0, 7);
+        sel.addEventListener('change', function () {
+          var v = sel.value ? '@' + sel.value : pick.value;
+          setVal(c.k, v); pick.value = twResolve(v).slice(0, 7);
+        });
+        pick.addEventListener('input', function () { sel.value = ''; setVal(c.k, pick.value); });
+        cg.appendChild(sel); cg.appendChild(pick);
+        var lab2 = document.createElement('label'); lab2.textContent = c.label;
+        wrap.appendChild(lab2); wrap.appendChild(cg);
+      }
+      return wrap;
+    }
+    // refresh all displayed control values from the primary frame
+    function seedPanel() {
+      body.querySelectorAll('input[type=range]').forEach(function (inp) {
+        var k = inp.getAttribute('data-key'); var v = getVal(k);
+        inp.value = v; var lbl = body.querySelector('[data-val="' + k + '"]'); if (lbl) lbl.textContent = v;
+      });
+      body.querySelectorAll('.tw-seg').forEach(function (seg) {
+        var k = seg.getAttribute('data-group'); var v = getVal(k);
+        seg.querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-v') === String(v)); });
+      });
+      body.querySelectorAll('.tw-color').forEach(function (g) {
+        var k = g.getAttribute('data-color-group'); var v = getVal(k), ref = twColorRef(v);
+        g.querySelector('select').value = ref ? ref.token : '';
+        g.querySelector('input[type=color]').value = twResolve(v).slice(0, 7);
+      });
+    }
+    function seedWhenReady() {
+      var tries = 0;
+      (function poll() {
+        var p = primary();
+        var ready = false;
+        try { ready = !!(p && p.contentWindow && p.contentWindow.MobileApp); } catch (e) {}
+        if (ready) { seedPanel(); return; }
+        if (tries++ < 40) setTimeout(poll, 120);
+      })();
+    }
+
+    /* panel open/close + host protocol */
+    function openTw() { document.body.classList.add('tw-open'); seedPanel(); }
+    function closeTw() { document.body.classList.remove('tw-open'); }       // silent (host-driven)
+    function dismissTw() {                                                   // user-driven → tell host
+      closeTw();
+      try { window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*'); } catch (e) {}
+    }
+    function toggleTw() { document.body.classList.contains('tw-open') ? dismissTw() : openTw(); }
+    document.getElementById('tw-toggle').addEventListener('click', toggleTw);
+    document.getElementById('tw-close').addEventListener('click', dismissTw);
+    function undoHarness() { var p = primary(); try { if (p && p.contentWindow && p.contentWindow.MobileApp) { p.contentWindow.MobileApp.undo(); seedPanel(); } } catch (e) {} }
+    function redoHarness() { var p = primary(); try { if (p && p.contentWindow && p.contentWindow.MobileApp) { p.contentWindow.MobileApp.redo(); seedPanel(); } } catch (e) {} }
+    document.getElementById('tw-undo').addEventListener('click', undoHarness);
+    document.getElementById('tw-redo').addEventListener('click', redoHarness);
+    window.addEventListener('keydown', function (e) {
+      if ((e.code === 'Backquote' || e.key === '`') && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); toggleTw(); }
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); if (e.shiftKey) redoHarness(); else undoHarness(); }
+    });
+
+    // speak the host protocol so the Claude toolbar "Tweaks" button drives us.
+    // NOTE: accept activate/deactivate regardless of message source (like the
+    // desktop tweaks panel) — the host's message source isn't always exactly
+    // window.parent, and over-filtering it was why the toolbar button no-op'd.
+    window.addEventListener('message', function (e) {
+      var m = e.data; if (!m || !m.type) return;
+      if (m.type === '__activate_edit_mode') { openTw(); return; }
+      if (m.type === '__deactivate_edit_mode') { closeTw(); return; }
+      // tweak edits bubbling UP from a phone frame: mirror to the OTHER frame(s)
+      if (m.type === '__edit_mode_set_keys') {
+        iframes().forEach(function (f) {
+          if (f.contentWindow && f.contentWindow !== e.source) {
+            try { f.contentWindow.postMessage({ type: '__edit_mode_set_keys', edits: m.edits, __external: true }, '*'); } catch (_) {}
+          }
+        });
+        /* NESTED (hosted by index.html): forward the edit UP as well, so
+           index.html can hand it to the host — which writes the EDITMODE block
+           of the OPEN file, i.e. index.html. This is the step that makes mobile
+           tweaks actually save. Standalone, there is nothing useful above us. */
+        if (NESTED) {
+          try { window.parent.postMessage({ type: '__edit_mode_set_keys', edits: m.edits }, '*'); } catch (_) {}
+        }
+      }
+    });
+    try { window.parent.postMessage({ type: '__edit_mode_available' }, '*'); } catch (e) {}
+
+    buildPanel();
+    render();
+
+    /* ── SAVE MODE ──────────────────────────────────────────────────────────
+       The host writes tweak values into the EDITMODE block of whichever file is
+       OPEN, so a panel running in Mobile Preview.html as a top-level file can
+       never write m* keys into index.html — they only reach the localStorage
+       mirror. Fix: index.html can HOST this harness in an iframe (?nested=1)
+       via the stored flag mk.previewDevice='harness'. Then index.html is the
+       open file, this panel's edits are relayed up through it, and every mobile
+       tweak auto-saves exactly like a desktop one — no switching files.
+       So: NESTED → already saving. Standalone → one click to arm it. */
+    var NESTED = false;
+    try { NESTED = new URLSearchParams(location.search).get('nested') === '1'; } catch (e) {}
+    var saveBtn  = document.getElementById('save-mode');
+    var hintSave = document.getElementById('hint-save');
+    function saveModeOn() {
+      try {
+        var at = parseInt(localStorage.getItem('mk.previewDeviceAt') || '0', 10);
+        return localStorage.getItem('mk.previewDevice') === 'harness'
+               && !!at && (Date.now() - at) < 43200000;   /* matches index.html's 12h window */
+      } catch (e) { return false; }
+    }
+    function refreshSaveBtn() {
+      if (NESTED) {
+        saveBtn.textContent = 'Saving ✓';
+        saveBtn.classList.add('on');
+        saveBtn.disabled = true;
+        hintSave.innerHTML = 'Every tweak saves straight into <code>index.html</code>.';
+        return;
+      }
+      var armed = saveModeOn();
+      saveBtn.textContent = armed ? 'Saving armed ✓' : 'Enable saving';
+      saveBtn.classList.toggle('on', armed);
+      hintSave.innerHTML = armed
+        ? 'Armed — open <code>index.html</code> in the tab bar: this same preview appears there and saves to the file. (Tweaks made in <i>this</i> tab still only live in the browser.)'
+        : 'Tweaks made here live in this browser only. Click to make this preview save to the file.';
+    }
+    saveBtn.addEventListener('click', function () {
+      if (NESTED) return;
+      var next = saveModeOn() ? '' : 'harness';
+      try {
+        localStorage.setItem('mk.previewDevice', next);
+        localStorage.setItem('mk.previewDeviceAt', next ? String(Date.now()) : '0');
+      } catch (e) {}
+      refreshSaveBtn();
+    });
+    refreshSaveBtn();
+  </script>
+</body>
+</html>

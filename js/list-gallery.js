@@ -532,10 +532,17 @@
          scroll. The title stack is re-seeded by the rebuilt callback. */
       state.activeId = null;
     } else {
-      state.scrollY = 0;
+      /* FILTER CHANGE landing (Filter buttons → Transition → Land on): with
+         opts.focusId the list opens on that project when it's in the new set
+         (no glide — it's the frame the transition animates in), else on the
+         first project as before */
+      var fk = -1;
+      if (opts.focusId) for (var fi = 0; fi < items.length; fi++) if (items[fi].p.id === opts.focusId) { fk = fi; break; }
+      var landIdx = fk >= 0 ? fk : 0;
+      state.scrollY = fk >= 0 ? snapsMod[fk] : 0;
       state.velY    = 0;
-      state.activeId = items[0].p.id;
-      if (state.onActiveChange) state.onActiveChange(items[0].p);
+      state.activeId = items[landIdx].p.id;
+      if (state.onActiveChange) state.onActiveChange(items[landIdx].p);
     }
     state.snapTarget = null;
     state.lastInputT = performance.now();
@@ -1401,6 +1408,8 @@
     getItems: function () { return state.items.map(function (it) { return it.p; }); },
     /* glide project `id` to the active slot, then cb(true) once settled —
        cb(false) if other input cancels it. Returns false if it can't start. */
+    /* the centred project's id (null when the list isn't built) */
+    activeId: function () { return state.on ? state.activeId : null; },
     goToProject: function (id, cb) {
       if (!state.on) return false;
       for (var k = 0; k < state.items.length; k++) {
